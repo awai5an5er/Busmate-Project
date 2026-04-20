@@ -16,6 +16,13 @@ export type Bus = {
   totalSeats?: number;
   /** True when the driver has started a trip (synced to MongoDB `isLive`) */
   isLive: boolean;
+  /** Route stops with coordinates for displaying route path on map */
+  routeStops?: Array<{
+    name: string;
+    lat: number;
+    lng: number;
+    order: number;
+  }>;
   position: {
     x: number;
     y: number;

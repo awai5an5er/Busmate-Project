@@ -11,6 +11,12 @@ export type MongoBusLean = {
   isLive: boolean;
   position: { lat: number; lng: number };
   routeId?: string;
+  routeStops?: Array<{
+    name: string;
+    lat: number;
+    lng: number;
+    order: number;
+  }>;
 };
 
 export function mapMongoBusToClient(doc: MongoBusLean): Bus {
@@ -24,6 +30,7 @@ export function mapMongoBusToClient(doc: MongoBusLean): Bus {
     isLive: Boolean(doc.isLive),
     routeId: doc.routeId,
     totalSeats: doc.totalSeats,
+    routeStops: doc.routeStops || undefined,
     position: {
       x: 50,
       y: 50,

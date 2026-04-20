@@ -21,6 +21,26 @@ export async function GET() {
     });
   } catch (e) {
     console.error("GET /api/broadcasts:", e);
-    return NextResponse.json({ error: "Unable to load broadcasts." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unable to load broadcasts." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    await dbConnect();
+    await BroadcastModel.deleteMany({});
+    return NextResponse.json({
+      success: true,
+      message: "All broadcasts cleared.",
+    });
+  } catch (e) {
+    console.error("DELETE /api/broadcasts:", e);
+    return NextResponse.json(
+      { error: "Unable to clear broadcasts." },
+      { status: 500 },
+    );
   }
 }

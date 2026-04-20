@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CarFront,
-  Crown,
   Eye,
   EyeOff,
   GraduationCap,
@@ -16,7 +15,6 @@ import {
 const roleOptions = [
   { id: "student", label: "Student", icon: GraduationCap },
   { id: "driver", label: "Driver", icon: CarFront },
-  { id: "admin", label: "Admin", icon: Crown },
 ] as const;
 
 export function SignupPage() {

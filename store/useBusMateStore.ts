@@ -13,6 +13,7 @@ type BusMateState = {
   driverTripActive: boolean;
   gpsActive: boolean;
   loadingAdminTable: boolean;
+  reachedWaypoints: Set<string>;
   setLoadingAdminTable: (value: boolean) => void;
   startTrip: () => void;
   endTrip: () => void;
@@ -24,17 +25,25 @@ type BusMateState = {
   pushNotification: (message: string, type?: NotificationType) => void;
   /** Merge server-persisted broadcasts without duplicating ids (student portal polling). */
   mergeBroadcastNotifications: (
-    items: Array<{ id: string; message: string; type: NotificationType; createdAt: number }>,
+    items: Array<{
+      id: string;
+      message: string;
+      type: NotificationType;
+      createdAt: number;
+    }>,
   ) => void;
   dismissNotification: (id: string) => void;
+  dismissAllNotifications: () => void;
+  markWaypointReached: (busId: string, waypointName: string) => boolean;
 };
 
-export const useBusMateStore = create<BusMateState>((set) => ({
+export const useBusMateStore = create<BusMateState>((set, get) => ({
   buses: initialBuses,
   notifications: [],
   driverTripActive: false,
   gpsActive: true,
   loadingAdminTable: true,
+  reachedWaypoints: new Set<string>(),
   setLoadingAdminTable: (value) => set({ loadingAdminTable: value }),
   startTrip: () => set({ driverTripActive: true }),
   endTrip: () => set({ driverTripActive: false }),
@@ -105,4 +114,18 @@ export const useBusMateStore = create<BusMateState>((set) => ({
     set((state) => ({
       notifications: state.notifications.filter((item) => item.id !== id),
     })),
+  dismissAllNotifications: () =>
+    set(() => ({
+      notifications: [],
+    })),
+  markWaypointReached: (busId: string, waypointName: string) => {
+    const key = `${busId}:${waypointName}`;
+    const reached = get().reachedWaypoints;
+    if (reached.has(key)) {
+      return false; // Already notified
+    }
+    reached.add(key);
+    set({ reachedWaypoints: new Set(reached) });
+    return true; // First time reaching this waypoint
+  },
 }));

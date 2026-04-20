@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { ensureBusDocumentForRoute } from "@/lib/ensureBusForRoute";
+import {
+  mapMongoBusToClient,
+  type MongoBusLean,
+} from "@/lib/mapMongoBusToClient";
 import { Bus as BusModel, Route as RouteModel } from "@/models";
 
 export async function GET(request: Request) {
@@ -9,23 +13,33 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
     const filter = activeOnly ? { isActive: true } : {};
-    const routeDocs = await RouteModel.find(filter).sort({ updatedAt: -1 }).limit(100).lean();
+    const routeDocs = await RouteModel.find(filter)
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .lean();
 
     const rows = await Promise.all(
       routeDocs.map(async (route) => {
         const rid = String(route._id);
-        const bus = await BusModel.findOne({ routeId: rid }).select("seatsAvailable eta isLive").lean();
+        const bus = await BusModel.findOne({ routeId: rid }).lean();
         const seatsAvailable =
-          typeof bus?.seatsAvailable === "number" && !Number.isNaN(bus.seatsAvailable)
+          typeof bus?.seatsAvailable === "number" &&
+          !Number.isNaN(bus.seatsAvailable)
             ? bus.seatsAvailable
             : 0;
         const eta = typeof bus?.eta === "number" ? bus.eta : undefined;
         const tripInProgress = Boolean(bus?.isLive);
+
+        // Map bus to client format if it exists
+        const busData = bus ? mapMongoBusToClient(bus as MongoBusLean) : null;
+
         return {
           ...route,
           seatsAvailable,
           etaFromBus: eta,
           tripInProgress,
+          bus: busData,
+          stops: route.stops || [], // Include stops in the response
         };
       }),
     );
