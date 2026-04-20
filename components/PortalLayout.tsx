@@ -12,7 +12,7 @@ export function PortalLayout({
 }) {
   return (
     <PortalAuthGuard expectedRole={role}>
-      <main className="min-h-screen bg-slate-100 px-4 py-6 md:px-6 lg:px-8">
+      <main className="min-h-screen bg-slate-100 px-4 py-6 md:px-6">
         <div className="mx-auto max-w-7xl">
           <header className="mb-5 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -21,10 +21,10 @@ export function PortalLayout({
               </p>
               <h1 className="text-xl font-bold text-slate-900">{role}</h1>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-sm text-slate-700 sm:w-auto"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
               >
                 Back to landing
               </Link>

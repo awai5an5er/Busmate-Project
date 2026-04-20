@@ -194,7 +194,7 @@ export function AdminDashboard() {
     <div className="space-y-4">
       <section className="grid gap-3 md:grid-cols-3">
         {stats.map((card) => (
-          <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
+          <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg">
             <p className="text-xs uppercase tracking-wide text-slate-500">{card.label}</p>
             <p className="mt-2 text-2xl font-bold text-slate-800">{card.value}</p>
           </div>
@@ -209,23 +209,23 @@ export function AdminDashboard() {
           </p>
           <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">Management Hub</h2>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <div className="flex flex-wrap gap-2">
               <input
                 value={newRoute}
                 onChange={(event) => setNewRoute(event.target.value)}
                 placeholder="Route name"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[140px] sm:flex-1"
+                className="min-w-[140px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700"
               />
               <input
                 value={newDriver}
                 onChange={(event) => setNewDriver(event.target.value)}
                 placeholder="Driver"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[120px] sm:flex-1"
+                className="min-w-[120px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700"
               />
               <select
                 value={newStatus}
                 onChange={(event) => setNewStatus(event.target.value as "active" | "offline")}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-700 sm:w-auto"
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-700"
               >
                 <option value="active">Active</option>
                 <option value="offline">Offline</option>
@@ -233,7 +233,7 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => void handleCreateRoute()}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-xl bg-blue-900 px-3 py-2 text-sm font-semibold text-white sm:w-auto"
+                className="inline-flex items-center gap-1 rounded-xl bg-blue-900 px-3 py-2 text-sm font-semibold text-white"
               >
                 <Plus className="h-4 w-4" />
                 Add Route
@@ -256,7 +256,7 @@ export function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-4 px-4 sm:-mx-1 sm:px-1">
+            <div className="overflow-x-auto -mx-1 px-1">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-xs uppercase text-slate-500">
@@ -281,7 +281,7 @@ export function AdminDashboard() {
                           value={row.assignedDriverId ?? ""}
                           disabled={!row.busId || assigningBusId === row.busId}
                           onChange={(e) => void handleAssignDriver(row, e.target.value)}
-                          className="w-full min-w-[8rem] max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 sm:min-w-[10rem] sm:max-w-[14rem]"
+                          className="w-full min-w-[10rem] max-w-[14rem] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                           aria-label={`Assign driver for ${row.name}`}
                         >
                           <option value="">
