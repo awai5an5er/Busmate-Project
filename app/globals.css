@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #3b82f6;
+  --bg-dark: #020617;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: #e2e8f0;
+}
+
+/* Leaflet custom bus markers (divIcon) */
+.busmate-bus-marker {
+  background: transparent !important;
+  border: none !important;
+}
