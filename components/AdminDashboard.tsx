@@ -191,8 +191,8 @@ export function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="grid gap-3 md:grid-cols-3">
+    <div className="space-y-4 px-2 sm:px-4">
+      <section className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {stats.map((card) => (
           <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg">
             <p className="text-xs uppercase tracking-wide text-slate-500">{card.label}</p>
@@ -200,8 +200,8 @@ export function AdminDashboard() {
           </div>
         ))}
       </section>
-      <section className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
+      <section className="grid gap-4 grid-cols-1 xl:grid-cols-[1.7fr_1fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
           <p className="mb-3 text-xs text-slate-500">
             Each route needs a <strong className="font-medium text-slate-600">Bus</strong> document in MongoDB
             (linked by <code className="rounded bg-slate-100 px-1">routeId</code>). Missing buses are created
@@ -209,18 +209,18 @@ export function AdminDashboard() {
           </p>
           <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">Management Hub</h2>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <input
                 value={newRoute}
                 onChange={(event) => setNewRoute(event.target.value)}
                 placeholder="Route name"
-                className="min-w-[140px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700"
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[120px]"
               />
               <input
                 value={newDriver}
                 onChange={(event) => setNewDriver(event.target.value)}
                 placeholder="Driver"
-                className="min-w-[120px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700"
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[100px]"
               />
               <select
                 value={newStatus}
@@ -233,17 +233,18 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => void handleCreateRoute()}
-                className="inline-flex items-center gap-1 rounded-xl bg-blue-900 px-3 py-2 text-sm font-semibold text-white"
+                className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-900 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" />
-                Add Route
+                <span className="hidden sm:inline">Add Route</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
           </div>
           {routeFormError && (
             <div className="mb-3 inline-flex w-full items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <AlertTriangle className="h-4 w-4" />
-              {routeFormError}
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>{routeFormError}</span>
             </div>
           )}
           {loadingAdminTable ? (
@@ -257,35 +258,35 @@ export function AdminDashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto -mx-1 px-1">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[500px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-xs uppercase text-slate-500">
-                    <th className="whitespace-nowrap py-2 pr-2">Route Id</th>
-                    <th className="whitespace-nowrap py-2 pr-2">Route Name</th>
-                    <th className="whitespace-nowrap py-2 pr-2">Driver</th>
-                    <th className="min-w-[11rem] whitespace-nowrap py-2 pr-2">Assign Driver</th>
-                    <th className="whitespace-nowrap py-2 pr-2">Status</th>
-                    <th className="whitespace-nowrap py-2">Action</th>
+                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1">Route Id</th>
+                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">Route Name</th>
+                    <th className="hidden md:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">Driver</th>
+                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">Assign Driver</th>
+                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">Status</th>
+                    <th className="whitespace-nowrap py-2 pr-0">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.routeId} className="border-b border-slate-100">
-                      <td className="max-w-[8rem] truncate py-2 pr-2 font-medium text-slate-700" title={row.routeId}>
-                        {row.routeId}
+                      <td className="hidden sm:table-cell max-w-[6rem] truncate py-2 pr-1 font-medium text-slate-700 text-xs" title={row.routeId}>
+                        {row.routeId.substring(0, 8)}
                       </td>
-                      <td className="py-2 pr-2 font-medium text-slate-900">{row.name}</td>
-                      <td className="py-2 pr-2 text-slate-900">{row.driver}</td>
-                      <td className="py-2 pr-2">
+                      <td className="py-2 pr-1 sm:pr-2 font-medium text-slate-900 text-xs sm:text-sm truncate">{row.name}</td>
+                      <td className="hidden md:table-cell py-2 pr-1 sm:pr-2 text-slate-900 text-xs sm:text-sm truncate">{row.driver}</td>
+                      <td className="py-2 pr-1 sm:pr-2">
                         <select
                           value={row.assignedDriverId ?? ""}
                           disabled={!row.busId || assigningBusId === row.busId}
                           onChange={(e) => void handleAssignDriver(row, e.target.value)}
-                          className="w-full min-w-[10rem] max-w-[14rem] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                          className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-slate-200 bg-white px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-slate-900 outline-none focus:border-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                           aria-label={`Assign driver for ${row.name}`}
                         >
                           <option value="">
-                            {row.busId ? "Unassigned" : "No bus linked"}
+                            {row.busId ? "—" : "No bus"}
                           </option>
                           {drivers.map((d) => (
                             <option key={d.id} value={d.id}>
@@ -294,22 +295,23 @@ export function AdminDashboard() {
                           ))}
                         </select>
                       </td>
-                      <td className="py-2 pr-2">
+                      <td className="hidden sm:table-cell py-2 pr-1 sm:pr-2">
                         <span
-                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${
+                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
                             row.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          {row.active ? "Active" : "Offline"}
+                          {row.active ? "Active" : "Off"}
                         </span>
                       </td>
-                      <td className="py-2">
+                      <td className="py-2 pr-1">
                         <button
                           type="button"
                           onClick={() => setRows((prev) => prev.filter((item) => item.routeId !== row.routeId))}
-                          className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600"
+                          className="rounded-lg border border-red-200 px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-red-600 whitespace-nowrap"
                         >
-                          Delete
+                          <span className="hidden sm:inline">Delete</span>
+                          <span className="sm:hidden">×</span>
                         </button>
                       </td>
                     </tr>
@@ -320,9 +322,9 @@ export function AdminDashboard() {
           )}
         </div>
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
-            <h3 className="mb-3 text-base font-semibold text-slate-800">Analytics View</h3>
-            <div className="h-60">
+          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
+            <h3 className="mb-3 text-sm sm:text-base font-semibold text-slate-800">Analytics View</h3>
+            <div className="h-48 sm:h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartSeed}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -334,8 +336,8 @@ export function AdminDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
-            <h3 className="mb-2 flex items-center gap-2 text-base font-semibold text-slate-800">
+          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
+            <h3 className="mb-2 flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-800">
               <Megaphone className="h-4 w-4 text-emerald-700" />
               Broadcast Tool
             </h3>
@@ -349,13 +351,13 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => void handleSendBroadcast()}
-              className="mt-3 w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+              className="mt-3 w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
             >
               Send Broadcast
             </button>
             {broadcastError && (
               <div className="mt-3 inline-flex w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                 {broadcastError}
               </div>
             )}
