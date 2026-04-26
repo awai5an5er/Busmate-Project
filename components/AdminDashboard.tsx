@@ -194,38 +194,38 @@ export function AdminDashboard() {
     <div className="space-y-4 px-2 sm:px-4">
       <section className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {stats.map((card) => (
-          <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg">
-            <p className="text-xs uppercase tracking-wide text-slate-500">{card.label}</p>
-            <p className="mt-2 text-2xl font-bold text-slate-800">{card.value}</p>
+          <div key={card.label} className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur">
+            <p className="text-xs uppercase tracking-wide text-amber-200/70">{card.label}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{card.value}</p>
           </div>
         ))}
       </section>
       <section className="grid gap-4 grid-cols-1 xl:grid-cols-[1.7fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
-          <p className="mb-3 text-xs text-slate-500">
-            Each route needs a <strong className="font-medium text-slate-600">Bus</strong> document in MongoDB
-            (linked by <code className="rounded bg-slate-100 px-1">routeId</code>). Missing buses are created
+        <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
+          <p className="mb-3 text-xs text-amber-200/70">
+            Each route needs a <strong className="font-medium text-amber-200">Bus</strong> document in MongoDB
+            (linked by <code className="rounded bg-amber-500/20 px-1 text-amber-200">routeId</code>). Missing buses are created
             automatically when you open this page or add a route.
           </p>
           <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Management Hub</h2>
+            <h2 className="text-lg font-semibold text-white">Management Hub</h2>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <input
                 value={newRoute}
                 onChange={(event) => setNewRoute(event.target.value)}
                 placeholder="Route name"
-                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[120px]"
+                className="flex-1 rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-amber-500 sm:min-w-[120px]"
               />
               <input
                 value={newDriver}
                 onChange={(event) => setNewDriver(event.target.value)}
                 placeholder="Driver"
-                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-700 sm:min-w-[100px]"
+                className="flex-1 rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-amber-500 sm:min-w-[100px]"
               />
               <select
                 value={newStatus}
                 onChange={(event) => setNewStatus(event.target.value as "active" | "offline")}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-700"
+                className="rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
               >
                 <option value="active">Active</option>
                 <option value="offline">Offline</option>
@@ -233,7 +233,7 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => void handleCreateRoute()}
-                className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-900 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Add Route</span>
@@ -252,7 +252,7 @@ export function AdminDashboard() {
               {Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={`skeleton-${index}`}
-                  className="h-12 animate-pulse rounded-xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100"
+                  className="h-12 animate-pulse rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/20"
                 />
               ))}
             </div>
@@ -260,7 +260,7 @@ export function AdminDashboard() {
             <div className="overflow-x-auto -mx-1 px-1">
               <table className="w-full min-w-[500px] text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs uppercase text-slate-500">
+                  <tr className="border-b border-amber-400/20 text-left text-xs uppercase text-amber-200/70">
                     <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1">Route Id</th>
                     <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">Route Name</th>
                     <th className="hidden md:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">Driver</th>
@@ -271,18 +271,18 @@ export function AdminDashboard() {
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <tr key={row.routeId} className="border-b border-slate-100">
-                      <td className="hidden sm:table-cell max-w-[6rem] truncate py-2 pr-1 font-medium text-slate-700 text-xs" title={row.routeId}>
+                    <tr key={row.routeId} className="border-b border-amber-400/20">
+                      <td className="hidden sm:table-cell max-w-[6rem] truncate py-2 pr-1 font-medium text-amber-200 text-xs" title={row.routeId}>
                         {row.routeId.substring(0, 8)}
                       </td>
-                      <td className="py-2 pr-1 sm:pr-2 font-medium text-slate-900 text-xs sm:text-sm truncate">{row.name}</td>
-                      <td className="hidden md:table-cell py-2 pr-1 sm:pr-2 text-slate-900 text-xs sm:text-sm truncate">{row.driver}</td>
+                      <td className="py-2 pr-1 sm:pr-2 font-medium text-white text-xs sm:text-sm truncate">{row.name}</td>
+                      <td className="hidden md:table-cell py-2 pr-1 sm:pr-2 text-amber-200/70 text-xs sm:text-sm truncate">{row.driver}</td>
                       <td className="py-2 pr-1 sm:pr-2">
                         <select
                           value={row.assignedDriverId ?? ""}
                           disabled={!row.busId || assigningBusId === row.busId}
                           onChange={(e) => void handleAssignDriver(row, e.target.value)}
-                          className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-slate-200 bg-white px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-slate-900 outline-none focus:border-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                          className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-amber-400/30 bg-white/5 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-amber-500/10"
                           aria-label={`Assign driver for ${row.name}`}
                         >
                           <option value="">
@@ -297,9 +297,8 @@ export function AdminDashboard() {
                       </td>
                       <td className="hidden sm:table-cell py-2 pr-1 sm:pr-2">
                         <span
-                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            row.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                          }`}
+                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${row.active ? "bg-amber-500/30 text-amber-200" : "bg-slate-700/50 text-slate-300"
+                            }`}
                         >
                           {row.active ? "Active" : "Off"}
                         </span>
@@ -308,7 +307,7 @@ export function AdminDashboard() {
                         <button
                           type="button"
                           onClick={() => setRows((prev) => prev.filter((item) => item.routeId !== row.routeId))}
-                          className="rounded-lg border border-red-200 px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-red-600 whitespace-nowrap"
+                          className="rounded-lg border border-red-400/30 px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-red-400 whitespace-nowrap"
                         >
                           <span className="hidden sm:inline">Delete</span>
                           <span className="sm:hidden">×</span>
@@ -322,8 +321,8 @@ export function AdminDashboard() {
           )}
         </div>
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
-            <h3 className="mb-3 text-sm sm:text-base font-semibold text-slate-800">Analytics View</h3>
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
+            <h3 className="mb-3 text-sm sm:text-base font-semibold text-white">Analytics View</h3>
             <div className="h-48 sm:h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartSeed}>
@@ -331,14 +330,14 @@ export function AdminDashboard() {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="trips" fill="#1e3a8a" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="trips" fill="#f59e0b" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4 md:p-5">
-            <h3 className="mb-2 flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-800">
-              <Megaphone className="h-4 w-4 text-emerald-700" />
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
+            <h3 className="mb-2 flex items-center gap-2 text-sm sm:text-base font-semibold text-white">
+              <Megaphone className="h-4 w-4 text-amber-400" />
               Broadcast Tool
             </h3>
             <textarea
@@ -346,12 +345,12 @@ export function AdminDashboard() {
               onChange={(event) => setBroadcast(event.target.value)}
               rows={3}
               placeholder="Send system-wide update..."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-600"
+              className="w-full rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-amber-500"
             />
             <button
               type="button"
               onClick={() => void handleSendBroadcast()}
-              className="mt-3 w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
+              className="mt-3 w-full rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition-colors"
             >
               Send Broadcast
             </button>

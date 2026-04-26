@@ -10,8 +10,8 @@ import { LiveMap } from "@/components/LiveMap";
 import type { NotificationType } from "@/types/busmate";
 
 const toastTone = {
-  info: "border-blue-200 bg-blue-50 text-slate-900",
-  success: "border-emerald-200 bg-emerald-50 text-slate-900",
+  info: "border-amber-200 bg-amber-50 text-slate-900",
+  success: "border-amber-300 bg-amber-100 text-slate-900",
   warning: "border-amber-200 bg-amber-50 text-slate-900",
   error: "border-red-200 bg-red-50 text-slate-900",
 };
@@ -218,19 +218,19 @@ export function StudentPortal() {
   return (
     <div className="space-y-4">
       {user && (
-        <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-emerald-100/50 p-4 md:p-5">
-          <p className="text-sm font-medium text-slate-600">Welcome,</p>
-          <h1 className="text-2xl font-bold text-slate-900">{user.name}</h1>
-          <p className="mt-1 text-xs text-slate-500">Student Portal</p>
+        <div className="rounded-3xl border border-amber-100/30 bg-gradient-to-r from-[#f59e0b]/20 to-[#f59e0b]/10 p-4 md:p-5 backdrop-blur">
+          <p className="text-sm font-medium text-amber-200">Welcome,</p>
+          <h1 className="text-2xl font-bold text-white">{user.name}</h1>
+          <p className="mt-1 text-xs text-amber-300/70">Student Portal</p>
         </div>
       )}
       {hasActiveBuses && (
-        <section className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/90 p-4 shadow-xl md:p-6">
+        <section className="relative overflow-hidden rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-xl backdrop-blur md:p-6">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-white">
               Interactive Live Map
             </h2>
-            <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+            <span className="w-fit rounded-full bg-amber-500/20 px-3 py-1 text-xs text-amber-200">
               OpenStreetMap + Leaflet
             </span>
           </div>
@@ -239,25 +239,25 @@ export function StudentPortal() {
       )}
 
       {!hasActiveBuses && (
-        <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-xl md:p-6">
+        <section className="relative overflow-hidden rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-xl backdrop-blur md:p-6">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-white">
               Interactive Live Map
             </h2>
-            <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+            <span className="w-fit rounded-full bg-amber-500/20 px-3 py-1 text-xs text-amber-200">
               OpenStreetMap + Leaflet
             </span>
           </div>
-          <div className="flex h-[360px] items-center justify-center rounded-2xl bg-slate-100">
+          <div className="flex h-[360px] items-center justify-center rounded-2xl bg-[#0b162b]/50">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
               className="flex flex-col items-center gap-3 text-center"
             >
-              <div className="rounded-full bg-slate-200 p-6">
+              <div className="rounded-full bg-amber-500/20 p-6">
                 <svg
-                  className="h-12 w-12 text-slate-500"
+                  className="h-12 w-12 text-amber-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -271,10 +271,10 @@ export function StudentPortal() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-700">
+                <p className="text-sm font-semibold text-amber-200">
                   No Active Buses
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="mt-1 text-xs text-slate-400">
                   Waiting for drivers to start trips...
                 </p>
               </div>
@@ -284,14 +284,14 @@ export function StudentPortal() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
-          <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-slate-800">
-            <Clock3 className="h-4 w-4 shrink-0 text-blue-700" />
+        <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
+          <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
+            <Clock3 className="h-4 w-4 shrink-0 text-amber-400" />
             ETA Dashboard
           </h3>
-          <p className="mb-3 text-xs text-slate-500">
+          <p className="mb-3 text-xs text-slate-400">
             Seat counts sync from MongoDB.{" "}
-            <strong className="font-medium text-slate-700">Active</strong> means
+            <strong className="font-medium text-amber-300">Active</strong> means
             the driver has started a trip for that route.
           </p>
           <div className="relative mb-3">
@@ -301,7 +301,7 @@ export function StudentPortal() {
               value={routeSearch}
               onChange={(e) => setRouteSearch(e.target.value)}
               placeholder="Search routes or drivers…"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-offset-2 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30"
+              className="w-full rounded-xl border border-amber-400/30 bg-white/5 py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-slate-400 outline-none ring-offset-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
               aria-label="Filter routes"
             />
           </div>
@@ -311,7 +311,7 @@ export function StudentPortal() {
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div
                     key={`route-skel-${i}`}
-                    className="h-20 animate-pulse rounded-2xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100"
+                    className="h-20 animate-pulse rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/20"
                   />
                 ))}
               </div>
@@ -322,7 +322,7 @@ export function StudentPortal() {
               </p>
             )}
             {!routesLoading && !routesError && routes.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-slate-200 p-3 text-xs text-slate-500">
+              <p className="rounded-2xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
                 No active routes in the database yet.
               </p>
             )}
@@ -330,7 +330,7 @@ export function StudentPortal() {
               !routesError &&
               routes.length > 0 &&
               filteredRoutes.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-slate-200 p-3 text-xs text-slate-600">
+                <p className="rounded-2xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
                   No routes match &quot;{routeSearch.trim()}&quot;.
                 </p>
               )}
@@ -341,32 +341,31 @@ export function StudentPortal() {
                 return (
                   <div
                     key={route.id}
-                    className="rounded-2xl bg-slate-50 p-3 sm:p-4"
+                    className="rounded-2xl bg-white/5 p-3 sm:p-4"
                   >
-                    <p className="text-sm font-semibold text-slate-800">
+                    <p className="text-sm font-semibold text-white">
                       {route.name}
                     </p>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-amber-200/70">
                       Driver: {route.driver}
                     </p>
                     <div className="mt-2 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
-                            route.tripInProgress
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-200 text-slate-600"
-                          }`}
+                          className={`inline-flex rounded-full px-2 py-0.5 font-medium ${route.tripInProgress
+                              ? "bg-amber-500/30 text-amber-200"
+                              : "bg-slate-700/50 text-slate-300"
+                            }`}
                         >
                           {route.tripInProgress ? "Active trip" : "Idle"}
                         </span>
                         {route.eta != null && (
-                          <span className="font-medium text-blue-700">
+                          <span className="font-medium text-amber-300">
                             ETA: {route.eta} min
                           </span>
                         )}
                       </div>
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
+                      <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
                         <Users className="h-3.5 w-3.5 shrink-0" />
                         {String(seats)} seats
                       </span>
@@ -377,11 +376,11 @@ export function StudentPortal() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:p-5">
+        <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-white">
               <div className="relative">
-                <BellRing className="h-4 w-4 text-blue-700" />
+                <BellRing className="h-4 w-4 text-amber-400" />
                 {notifications.length > 0 && (
                   <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
                 )}
@@ -408,7 +407,7 @@ export function StudentPortal() {
           <AnimatePresence>
             <div className="space-y-2">
               {notifications.length === 0 && (
-                <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-600">
+                <p className="rounded-xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
                   All systems normal. No new alerts.
                 </p>
               )}
