@@ -3,7 +3,15 @@
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Megaphone, Plus } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { chartSeed } from "@/data/mockData";
 import { useBusMateStore } from "@/store/useBusMateStore";
 
@@ -33,14 +41,28 @@ export function AdminDashboard() {
   const [routeFormError, setRouteFormError] = useState("");
   const [broadcastError, setBroadcastError] = useState("");
   const [assigningBusId, setAssigningBusId] = useState<string | null>(null);
+  const [complaints, setComplaints] = useState<
+    Array<{
+      id: string;
+      message: string;
+      studentId: string;
+      studentName: string;
+      createdAt: number;
+    }>
+  >([]);
 
   const loadingAdminTable = useBusMateStore((state) => state.loadingAdminTable);
-  const setLoadingAdminTable = useBusMateStore((state) => state.setLoadingAdminTable);
+  const setLoadingAdminTable = useBusMateStore(
+    (state) => state.setLoadingAdminTable,
+  );
   const pushNotification = useBusMateStore((state) => state.pushNotification);
 
   const loadManagementHub = useCallback(async () => {
     const syncRes = await axios
-      .post<{ busesCreated?: number; routesChecked?: number }>("/api/admin/ensure-route-buses")
+      .post<{
+        busesCreated?: number;
+        routesChecked?: number;
+      }>("/api/admin/ensure-route-buses")
       .catch(() => null);
     const created = syncRes?.data?.busesCreated ?? 0;
     if (created > 0) {
@@ -50,24 +72,29 @@ export function AdminDashboard() {
       );
     }
 
-    const [{ data: routesData }, { data: busesData }, { data: driversData }] = await Promise.all([
-      axios.get<{ rows: Array<Record<string, unknown>> }>("/api/routes"),
-      axios.get<{
-        buses: Array<{
-          id: string;
-          routeId: string | null;
-          assignedDriverId: string | null;
-          driverName: string | null;
-        }>;
-      }>("/api/admin/buses"),
-      axios.get<{ drivers: DriverOption[] }>("/api/admin/drivers"),
-    ]);
+    const [{ data: routesData }, { data: busesData }, { data: driversData }] =
+      await Promise.all([
+        axios.get<{ rows: Array<Record<string, unknown>> }>("/api/routes"),
+        axios.get<{
+          buses: Array<{
+            id: string;
+            routeId: string | null;
+            assignedDriverId: string | null;
+            driverName: string | null;
+          }>;
+        }>("/api/admin/buses"),
+        axios.get<{ drivers: DriverOption[] }>("/api/admin/drivers"),
+      ]);
 
     setDrivers(driversData.drivers ?? []);
 
     const byRoute = new Map<
       string,
-      { busId: string; assignedDriverId: string | null; driverName: string | null }
+      {
+        busId: string;
+        assignedDriverId: string | null;
+        driverName: string | null;
+      }
     >();
     for (const b of busesData.buses ?? []) {
       if (b.routeId) {
@@ -87,7 +114,9 @@ export function AdminDashboard() {
       const link = byRoute.get(rid);
       const routeDriverLabel = String(r.driver ?? "Pending Assignment");
       const driverDisplay =
-        link?.driverName && link.driverName.length > 0 ? link.driverName : routeDriverLabel;
+        link?.driverName && link.driverName.length > 0
+          ? link.driverName
+          : routeDriverLabel;
 
       return {
         routeId: rid,
@@ -108,7 +137,8 @@ export function AdminDashboard() {
       try {
         await loadManagementHub();
       } catch {
-        if (!cancelled) pushNotification("Could not load management data.", "error");
+        if (!cancelled)
+          pushNotification("Could not load management data.", "error");
       } finally {
         if (!cancelled) setLoadingAdminTable(false);
       }
@@ -121,7 +151,10 @@ export function AdminDashboard() {
   const stats = useMemo(
     () => [
       { label: "Total Routes", value: rows.length },
-      { label: "Active Routes", value: rows.filter((item) => item.active).length },
+      {
+        label: "Active Routes",
+        value: rows.filter((item) => item.active).length,
+      },
       {
         label: "Drivers Assigned",
         value: rows.filter((item) => item.assignedDriverId).length,
@@ -154,7 +187,10 @@ export function AdminDashboard() {
 
   const handleAssignDriver = async (row: RouteTableRow, driverId: string) => {
     if (!row.busId) {
-      pushNotification("No bus is linked to this route yet (set bus.routeId).", "warning");
+      pushNotification(
+        "No bus is linked to this route yet (set bus.routeId).",
+        "warning",
+      );
       return;
     }
     setAssigningBusId(row.busId);
@@ -190,12 +226,38 @@ export function AdminDashboard() {
     }
   };
 
+  const loadComplaints = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        complaints: Array<{
+          id: string;
+          message: string;
+          studentId: string;
+          studentName: string;
+          createdAt: number;
+        }>;
+      }>("/api/admin/complaints");
+      setComplaints(data.complaints ?? []);
+    } catch {
+      /* ignore complaints fetch errors */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadComplaints();
+  }, [loadComplaints]);
+
   return (
     <div className="space-y-4 px-2 sm:px-4">
       <section className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {stats.map((card) => (
-          <div key={card.label} className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-amber-200/70">{card.label}</p>
+          <div
+            key={card.label}
+            className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur"
+          >
+            <p className="text-xs uppercase tracking-wide text-amber-200/70">
+              {card.label}
+            </p>
             <p className="mt-2 text-2xl font-bold text-white">{card.value}</p>
           </div>
         ))}
@@ -203,9 +265,14 @@ export function AdminDashboard() {
       <section className="grid gap-4 grid-cols-1 xl:grid-cols-[1.7fr_1fr]">
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
           <p className="mb-3 text-xs text-amber-200/70">
-            Each route needs a <strong className="font-medium text-amber-200">Bus</strong> document in MongoDB
-            (linked by <code className="rounded bg-amber-500/20 px-1 text-amber-200">routeId</code>). Missing buses are created
-            automatically when you open this page or add a route.
+            Each route needs a{" "}
+            <strong className="font-medium text-amber-200">Bus</strong> document
+            in MongoDB (linked by{" "}
+            <code className="rounded bg-amber-500/20 px-1 text-amber-200">
+              routeId
+            </code>
+            ). Missing buses are created automatically when you open this page
+            or add a route.
           </p>
           <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h2 className="text-lg font-semibold text-white">Management Hub</h2>
@@ -224,7 +291,9 @@ export function AdminDashboard() {
               />
               <select
                 value={newStatus}
-                onChange={(event) => setNewStatus(event.target.value as "active" | "offline")}
+                onChange={(event) =>
+                  setNewStatus(event.target.value as "active" | "offline")
+                }
                 className="rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
               >
                 <option value="active">Active</option>
@@ -261,33 +330,53 @@ export function AdminDashboard() {
               <table className="w-full min-w-[500px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-amber-400/20 text-left text-xs uppercase text-amber-200/70">
-                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1">Route Id</th>
-                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">Route Name</th>
-                    <th className="hidden md:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">Driver</th>
-                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">Assign Driver</th>
-                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">Status</th>
+                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1">
+                      Route Id
+                    </th>
+                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">
+                      Route Name
+                    </th>
+                    <th className="hidden md:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">
+                      Driver
+                    </th>
+                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">
+                      Assign Driver
+                    </th>
+                    <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">
+                      Status
+                    </th>
                     <th className="whitespace-nowrap py-2 pr-0">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <tr key={row.routeId} className="border-b border-amber-400/20">
-                      <td className="hidden sm:table-cell max-w-[6rem] truncate py-2 pr-1 font-medium text-amber-200 text-xs" title={row.routeId}>
+                    <tr
+                      key={row.routeId}
+                      className="border-b border-amber-400/20"
+                    >
+                      <td
+                        className="hidden sm:table-cell max-w-[6rem] truncate py-2 pr-1 font-medium text-amber-200 text-xs"
+                        title={row.routeId}
+                      >
                         {row.routeId.substring(0, 8)}
                       </td>
-                      <td className="py-2 pr-1 sm:pr-2 font-medium text-white text-xs sm:text-sm truncate">{row.name}</td>
-                      <td className="hidden md:table-cell py-2 pr-1 sm:pr-2 text-amber-200/70 text-xs sm:text-sm truncate">{row.driver}</td>
+                      <td className="py-2 pr-1 sm:pr-2 font-medium text-white text-xs sm:text-sm truncate">
+                        {row.name}
+                      </td>
+                      <td className="hidden md:table-cell py-2 pr-1 sm:pr-2 text-amber-200/70 text-xs sm:text-sm truncate">
+                        {row.driver}
+                      </td>
                       <td className="py-2 pr-1 sm:pr-2">
                         <select
                           value={row.assignedDriverId ?? ""}
                           disabled={!row.busId || assigningBusId === row.busId}
-                          onChange={(e) => void handleAssignDriver(row, e.target.value)}
+                          onChange={(e) =>
+                            void handleAssignDriver(row, e.target.value)
+                          }
                           className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-amber-400/30 bg-white/5 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-amber-500/10"
                           aria-label={`Assign driver for ${row.name}`}
                         >
-                          <option value="">
-                            {row.busId ? "—" : "No bus"}
-                          </option>
+                          <option value="">{row.busId ? "—" : "No bus"}</option>
                           {drivers.map((d) => (
                             <option key={d.id} value={d.id}>
                               {d.name}
@@ -297,8 +386,11 @@ export function AdminDashboard() {
                       </td>
                       <td className="hidden sm:table-cell py-2 pr-1 sm:pr-2">
                         <span
-                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${row.active ? "bg-amber-500/30 text-amber-200" : "bg-slate-700/50 text-slate-300"
-                            }`}
+                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            row.active
+                              ? "bg-amber-500/30 text-amber-200"
+                              : "bg-slate-700/50 text-slate-300"
+                          }`}
                         >
                           {row.active ? "Active" : "Off"}
                         </span>
@@ -306,7 +398,13 @@ export function AdminDashboard() {
                       <td className="py-2 pr-1">
                         <button
                           type="button"
-                          onClick={() => setRows((prev) => prev.filter((item) => item.routeId !== row.routeId))}
+                          onClick={() =>
+                            setRows((prev) =>
+                              prev.filter(
+                                (item) => item.routeId !== row.routeId,
+                              ),
+                            )
+                          }
                           className="rounded-lg border border-red-400/30 px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-red-400 whitespace-nowrap"
                         >
                           <span className="hidden sm:inline">Delete</span>
@@ -322,7 +420,9 @@ export function AdminDashboard() {
         </div>
         <div className="space-y-4">
           <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
-            <h3 className="mb-3 text-sm sm:text-base font-semibold text-white">Analytics View</h3>
+            <h3 className="mb-3 text-sm sm:text-base font-semibold text-white">
+              Analytics View
+            </h3>
             <div className="h-48 sm:h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartSeed}>
@@ -360,6 +460,53 @@ export function AdminDashboard() {
                 {broadcastError}
               </div>
             )}
+          </div>
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-white">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Student Complaints ({complaints.length})
+              </h3>
+              {complaints.length > 0 && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await axios.delete("/api/admin/complaints");
+                      await loadComplaints();
+                      pushNotification("All complaints cleared.", "success");
+                    } catch (err) {
+                      console.error("Failed to clear complaints:", err);
+                      pushNotification("Failed to clear complaints.", "error");
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Clear All
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {complaints.length === 0 && (
+                <p className="rounded-xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
+                  No complaints submitted yet.
+                </p>
+              )}
+              {complaints.map((complaint) => (
+                <div
+                  key={complaint.id}
+                  className="rounded-xl border border-amber-400/20 bg-white/5 p-3"
+                >
+                  <p className="text-sm text-white mb-2">{complaint.message}</p>
+                  <div className="flex items-center justify-between text-xs text-amber-200/70">
+                    <span>By: {complaint.studentName}</span>
+                    <span>
+                      {new Date(complaint.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

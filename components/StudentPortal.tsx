@@ -62,6 +62,9 @@ export function StudentPortal() {
   const [previousTripsState, setPreviousTripsState] = useState<Set<string>>(
     new Set(),
   );
+  const [complaint, setComplaint] = useState("");
+  const [complaintError, setComplaintError] = useState("");
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
 
   const refreshRoutes = useCallback(async () => {
     try {
@@ -152,6 +155,30 @@ export function StudentPortal() {
     );
     return () => clearInterval(timer);
   }, [refreshBroadcasts]);
+
+  const handleSubmitComplaint = async () => {
+    if (complaint.trim().length < 5) {
+      setComplaintError("Complaint message must be at least 5 characters.");
+      return;
+    }
+    setComplaintError("");
+    setSubmittingComplaint(true);
+    try {
+      await axios.post("/api/complaints", {
+        message: complaint.trim(),
+      });
+      pushNotification("Complaint submitted successfully.", "success");
+      setComplaint("");
+    } catch (error) {
+      console.error("Failed to submit complaint:", error);
+      pushNotification(
+        "Failed to submit complaint. Please try again.",
+        "error",
+      );
+    } finally {
+      setSubmittingComplaint(false);
+    }
+  };
 
   const filteredRoutes = useMemo(() => {
     const q = routeSearch.trim().toLowerCase();
@@ -352,10 +379,11 @@ export function StudentPortal() {
                     <div className="mt-2 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 font-medium ${route.tripInProgress
+                          className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
+                            route.tripInProgress
                               ? "bg-amber-500/30 text-amber-200"
                               : "bg-slate-700/50 text-slate-300"
-                            }`}
+                          }`}
                         >
                           {route.tripInProgress ? "Active trip" : "Idle"}
                         </span>
@@ -427,6 +455,59 @@ export function StudentPortal() {
               ))}
             </div>
           </AnimatePresence>
+        </div>
+
+        <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-white">
+            <svg
+              className="h-4 w-4 text-amber-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+            Submit Complaint
+          </h3>
+          <textarea
+            value={complaint}
+            onChange={(e) => setComplaint(e.target.value)}
+            rows={3}
+            placeholder="Describe your issue or complaint..."
+            className="w-full rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-amber-500"
+            disabled={submittingComplaint}
+          />
+          <button
+            type="button"
+            onClick={() => void handleSubmitComplaint()}
+            disabled={submittingComplaint || complaint.trim().length === 0}
+            className="mt-3 w-full rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submittingComplaint ? "Submitting..." : "Submit Complaint"}
+          </button>
+          {complaintError && (
+            <div className="mt-3 inline-flex w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <svg
+                className="h-4 w-4 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+              {complaintError}
+            </div>
+          )}
         </div>
       </div>
     </div>
