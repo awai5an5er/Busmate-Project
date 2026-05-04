@@ -290,7 +290,7 @@ export function LandingPage() {
       </motion.div>
       <header className="sticky top-0 z-50 bg-[#0A1520]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
-          <div className="relative h-12 w-[120px] sm:h-14 sm:w-[160px] md:h-16 md:w-[200px] lg:h-20 lg:w-[250px]">
+          <div className="relative h-14 w-[160px] sm:h-14 sm:w-[160px] md:h-16 md:w-[200px] lg:h-20 lg:w-[250px]">
             <Image src="/LogoNav.png" alt="BusMate" fill priority className="object-left" />
           </div>
           <motion.a
