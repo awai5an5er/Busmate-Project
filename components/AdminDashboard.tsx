@@ -294,7 +294,7 @@ export function AdminDashboard() {
                 onChange={(event) =>
                   setNewStatus(event.target.value as "active" | "offline")
                 }
-                className="rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+                className="rounded-xl border border-slate-700/70 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
               >
                 <option value="active">Active</option>
                 <option value="offline">Offline</option>
@@ -373,7 +373,7 @@ export function AdminDashboard() {
                           onChange={(e) =>
                             void handleAssignDriver(row, e.target.value)
                           }
-                          className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-amber-400/30 bg-white/5 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-amber-500/10"
+                          className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-slate-700/70 bg-slate-900 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-slate-800"
                           aria-label={`Assign driver for ${row.name}`}
                         >
                           <option value="">{row.busId ? "—" : "No bus"}</option>

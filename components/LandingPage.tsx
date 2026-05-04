@@ -263,7 +263,7 @@ export function LandingPage() {
 
   return (
     <div
-      className="min-h-screen cursor-none bg-[#0b162b] text-slate-100"
+      className="min-h-screen cursor-none bg-[#0D1B2A] text-slate-100"
       onMouseEnter={() => setShowCursor(true)}
       onMouseLeave={() => setShowCursor(false)}
       onMouseMove={(event) => setCursorPos({ x: event.clientX, y: event.clientY })}
@@ -288,10 +288,10 @@ export function LandingPage() {
           <Bus className="relative h-5 w-5" />
         </div>
       </motion.div>
-      <header className="sticky top-0 z-50 border-b border-[#f59e0b]/20 bg-[#0b162b]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
-          <div className="relative h-12 w-[70px]">
-            <Image src="/LogoBusmate.png" alt="BusMate" fill priority className=" object-left" />
+      <header className="sticky top-0 z-50 bg-[#0A1520]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
+          <div className="relative h-12 w-[120px] sm:h-14 sm:w-[160px] md:h-16 md:w-[200px] lg:h-20 lg:w-[250px]">
+            <Image src="/LogoNav.png" alt="BusMate" fill priority className="object-left" />
           </div>
           <motion.a
             href="/login"
@@ -303,11 +303,11 @@ export function LandingPage() {
               ],
             }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-[#fbbf24]/50 bg-gradient-to-b from-[#fcd34d]/80 via-[#f59e0b]/60 to-[#d97706]/70 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md transition hover:scale-[1.02]"
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-[#fbbf24]/50 bg-gradient-to-b from-[#fcd34d]/80 via-[#f59e0b]/60 to-[#d97706]/70 px-3 py-2 text-xs sm:text-sm font-semibold text-white backdrop-blur-md transition hover:scale-[1.02] md:px-4 md:py-2"
           >
             <span className="absolute inset-x-2 top-1 h-1 rounded-full bg-white/80 blur-sm" />
             Sign in
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
           </motion.a>
         </div>
       </header>
