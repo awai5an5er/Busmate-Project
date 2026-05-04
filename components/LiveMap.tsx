@@ -12,6 +12,6 @@ const ClientMap = dynamic(() => import("@/components/MapComponent").then((mod) =
   ),
 });
 
-export function LiveMap({ buses, isSimulationMaster = false }: { buses: Bus[], isSimulationMaster?: boolean }) {
-  return <ClientMap buses={buses} isSimulationMaster={isSimulationMaster} />;
+export function LiveMap({ buses }: { buses: Bus[] }) {
+  return <ClientMap buses={buses} />;
 }

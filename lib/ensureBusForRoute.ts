@@ -1,44 +1,35 @@
 import dbConnect from "@/lib/mongodb";
 import { Bus as BusModel } from "@/models";
-import { ROUTE_POOL } from "./routePool";
+
+/** Default map center used when no GPS exists yet (matches app mock region). */
+const DEFAULT_POSITION = { lat: 31.5204, lng: 74.3587 };
 
 /**
  * Ensures a Bus document exists with `routeId` set to the given route id.
- * Assigns a unique route from ROUTE_POOL.
- * Returns an error if all route slots are occupied.
+ * Required for driver assignment, seat sync, and the admin Assign Driver dropdown.
  */
 export async function ensureBusDocumentForRoute(params: {
   routeId: string;
   routeName: string;
-}): Promise<{ created: boolean; busMongoId?: string; error?: string }> {
+  routePathLabel?: string;
+}): Promise<{ created: boolean; busMongoId: string }> {
   await dbConnect();
-  
   const existing = await BusModel.findOne({ routeId: params.routeId }).lean();
   if (existing) {
     return { created: false, busMongoId: String(existing._id) };
   }
 
-  // Find an available route from the ROUTE_POOL
-  const allBuses = await BusModel.find({}, { name: 1 }).lean();
-  const usedRouteNames = new Set(allBuses.map((b) => b.name));
-  
-  const availableRoute = ROUTE_POOL.find((r) => !usedRouteNames.has(r.routeName));
-  
-  if (!availableRoute) {
-    return { created: false, error: "All route slots are occupied. Remove a bus to add a new one." };
-  }
+  const pathLabel = (params.routePathLabel ?? params.routeName).slice(0, 200);
+  const title = params.routeName.slice(0, 120);
 
   const bus = await BusModel.create({
-    name: availableRoute.routeName,
-    route: availableRoute.routeName,
+    name: title,
+    route: pathLabel,
     eta: 10,
     seatsAvailable: 40,
     totalSeats: 50,
     isLive: false,
-    position: availableRoute.start, // Initial fallback position
-    startCoord: availableRoute.start,
-    endCoord: availableRoute.end,
-    currentCoord: availableRoute.start,
+    position: DEFAULT_POSITION,
     routeId: params.routeId,
   });
 

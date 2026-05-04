@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       const { created } = await ensureBusDocumentForRoute({
         routeId,
         routeName,
+        routePathLabel: routeName,
       });
       if (created) busesCreated++;
     }
