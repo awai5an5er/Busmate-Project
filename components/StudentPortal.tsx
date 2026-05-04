@@ -16,7 +16,8 @@ const toastTone = {
   error: "border-red-200 bg-red-50 text-slate-900",
 };
 
-const ROUTE_POLL_MS = 20_000;
+/** Matches driver GPS PATCH cadence so the student map stays aligned with live trips. */
+const ROUTE_POLL_MS = 5_000;
 const BROADCAST_POLL_MS = 12_000;
 
 type ActiveRouteRow = {
@@ -332,7 +333,7 @@ export function StudentPortal() {
               OpenStreetMap + Leaflet
             </span>
           </div>
-          <LiveMap buses={activeBuses} />
+          <LiveMap buses={activeBuses} tripControl="student" />
         </section>
       )}
 
