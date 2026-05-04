@@ -188,7 +188,7 @@ export function DriverInterface() {
               Broadcasting
             </span>
           </div>
-          <LiveMap buses={[controlledBus]} />
+          <LiveMap buses={[controlledBus]} isSimulationMaster={true} />
         </section>
       )}
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">

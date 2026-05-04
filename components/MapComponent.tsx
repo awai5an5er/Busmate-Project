@@ -17,12 +17,6 @@ import { getBusLeafletIcon } from "@/lib/busLeafletIcon";
 import { getStartStopIcons } from "@/lib/startStopIcons";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const LAHORE_BOUNDS = {
-  latMin: 31.45,
-  latMax: 31.60,
-  lngMin: 74.25,
-  lngMax: 74.45,
-};
 const BUS_SPEED_KMH = 30;
 const TICK_MS = 1500; // animation interval
 const GPS_SYNC_MS = 5000; // MongoDB sync interval
@@ -69,14 +63,6 @@ function randFloat(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
-/** Generate a random coordinate within Lahore bounding box. */
-function randomLahoreCoord() {
-  return {
-    lat: randFloat(LAHORE_BOUNDS.latMin, LAHORE_BOUNDS.latMax),
-    lng: randFloat(LAHORE_BOUNDS.lngMin, LAHORE_BOUNDS.lngMax),
-  };
-}
-
 // ─── Per-bus simulation state (stored in a ref so it survives re-renders) ────
 type BusSimState = {
   startCoord: { lat: number; lng: number };
@@ -94,12 +80,13 @@ type BusSimState = {
 
 type MapComponentProps = {
   buses: Bus[];
+  isSimulationMaster?: boolean;
 };
 
 const fallbackCenter: [number, number] = [31.5204, 74.3587];
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function MapComponent({ buses }: MapComponentProps) {
+export function MapComponent({ buses, isSimulationMaster = false }: MapComponentProps) {
   const activeBuses = useMemo(() => buses.filter((b) => b.isLive), [buses]);
   const hasActiveBuses = activeBuses.length > 0;
 
@@ -123,36 +110,29 @@ export function MapComponent({ buses }: MapComponentProps) {
   // ── Initialise simulation state for a bus when it goes live ─────────────
   const initBusSim = useCallback(
     (bus: Bus) => {
-      if (simulatingRef.current.has(bus.id)) return;
+      if (!isSimulationMaster || simulatingRef.current.has(bus.id)) return;
       simulatingRef.current.add(bus.id);
 
-      const startCoord = {
+      // Use startCoord and endCoord from the database, falling back if missing
+      const startCoord = bus.startCoord ?? {
         lat: bus.position.lat,
         lng: bus.position.lng,
       };
-      const endCoord = randomLahoreCoord();
-      // Ensure end is reasonably far (>1 km) from start
-      let attempts = 0;
-      let finalEnd = endCoord;
-      while (
-        haversineKm(startCoord.lat, startCoord.lng, finalEnd.lat, finalEnd.lng) <
-          1 &&
-        attempts < 10
-      ) {
-        finalEnd = randomLahoreCoord();
-        attempts++;
-      }
+      const endCoord = bus.endCoord ?? {
+        lat: bus.position.lat + 0.05,
+        lng: bus.position.lng + 0.05,
+      };
 
       const totalDistKm = haversineKm(
         startCoord.lat,
         startCoord.lng,
-        finalEnd.lat,
-        finalEnd.lng,
+        endCoord.lat,
+        endCoord.lng,
       );
 
       simRef.current[bus.id] = {
         startCoord,
-        endCoord: finalEnd,
+        endCoord,
         progress: 0,
         totalDistKm,
         arrived: false,
@@ -163,11 +143,9 @@ export function MapComponent({ buses }: MapComponentProps) {
         elapsedS: 0,
       };
 
-      // Persist start/end coords to MongoDB immediately
+      // Persist status to MongoDB immediately
       void axios
         .patch(`/api/buses/${bus.id}`, {
-          startCoord,
-          endCoord: finalEnd,
           status: "active",
           gpsActive: true,
         })
@@ -178,10 +156,10 @@ export function MapComponent({ buses }: MapComponentProps) {
         status: "active",
         gpsActive: true,
         startCoord,
-        endCoord: finalEnd,
+        endCoord,
       });
     },
-    [updateBusTripState],
+    [isSimulationMaster, updateBusTripState],
   );
 
   // ── Remove sim state when a bus goes offline ─────────────────────────────
@@ -192,7 +170,7 @@ export function MapComponent({ buses }: MapComponentProps) {
 
   // ── Main animation tick ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasActiveBuses) return;
+    if (!hasActiveBuses || !isSimulationMaster) return;
 
     const intervalId = setInterval(() => {
       const tickS = TICK_MS / 1000;
@@ -323,7 +301,24 @@ export function MapComponent({ buses }: MapComponentProps) {
     updateBusFromFeed,
     updateBusTripState,
     initBusSim,
+    isSimulationMaster,
   ]);
+
+  // ── Sync Slave positions ──────────────────────────────────────────────────
+  // If not simulation master, just use the currentCoord from the store directly
+  useEffect(() => {
+    if (isSimulationMaster) return;
+    
+    setAnimatedPositions((prev) => {
+      const updated = { ...prev };
+      for (const bus of activeBuses) {
+        if (bus.currentCoord) {
+          updated[bus.id] = [bus.currentCoord.lat, bus.currentCoord.lng];
+        }
+      }
+      return updated;
+    });
+  }, [activeBuses, isSimulationMaster]);
 
   // ── Clean up sim state for buses that go offline ─────────────────────────
   useEffect(() => {
@@ -337,7 +332,7 @@ export function MapComponent({ buses }: MapComponentProps) {
 
   // ── GPS sync: PATCH every 5 s with current position ─────────────────────
   useEffect(() => {
-    if (!hasActiveBuses) return;
+    if (!hasActiveBuses || !isSimulationMaster) return;
 
     const syncId = setInterval(() => {
       for (const bus of activeBuses) {
@@ -368,7 +363,7 @@ export function MapComponent({ buses }: MapComponentProps) {
     }, GPS_SYNC_MS);
 
     return () => clearInterval(syncId);
-  }, [hasActiveBuses, activeBuses]);
+  }, [hasActiveBuses, activeBuses, isSimulationMaster]);
 
   // ── Route polyline data (memoised) ───────────────────────────────────────
   const routeData = useMemo(() => {
@@ -376,8 +371,6 @@ export function MapComponent({ buses }: MapComponentProps) {
 
     // Prefer routeStops if available; fall back to sim start/end
     return activeBuses.map((bus) => {
-      const sim = simRef.current[bus.id];
-
       // Use routeStops path if present
       if (bus.routeStops && bus.routeStops.length >= 2) {
         const sortedStops = [...bus.routeStops].sort(
@@ -397,11 +390,11 @@ export function MapComponent({ buses }: MapComponentProps) {
         };
       }
 
-      // Fall back to generated sim start/end coords
-      if (sim) {
+      // Fall back to bus.startCoord / bus.endCoord from store
+      if (bus.startCoord && bus.endCoord) {
         const path: [number, number][] = [
-          [sim.startCoord.lat, sim.startCoord.lng],
-          [sim.endCoord.lat, sim.endCoord.lng],
+          [bus.startCoord.lat, bus.startCoord.lng],
+          [bus.endCoord.lat, bus.endCoord.lng],
         ];
         return {
           busId: bus.id,
@@ -508,13 +501,12 @@ export function MapComponent({ buses }: MapComponentProps) {
           ];
           const routeTitle = bus.routeName ?? bus.name;
           const driver = bus.driverName ?? "—";
-          const sim = simRef.current[bus.id];
-          const remainingDistKm = sim
+          const remainingDistKm = bus.endCoord
             ? haversineKm(
                 animPos[0],
                 animPos[1],
-                sim.endCoord.lat,
-                sim.endCoord.lng,
+                bus.endCoord.lat,
+                bus.endCoord.lng,
               )
             : null;
           const etaMin =

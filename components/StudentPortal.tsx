@@ -4,6 +4,7 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, Clock3, Search, Users, Wifi, WifiOff, X } from "lucide-react";
+import type { Bus } from "@/types/busmate";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
@@ -155,6 +156,29 @@ export function StudentPortal() {
     );
     return () => clearInterval(timer);
   }, [refreshBroadcasts]);
+
+  // Fast 3-second polling for live GPS coordinate sync from DB
+  const refreshBuses = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{ buses: Array<Record<string, unknown>> }>("/api/buses");
+      if (data.buses) {
+        data.buses.forEach((bus) => {
+          upsertBus({
+            ...bus,
+            id: String(bus._id)
+          } as Bus);
+        });
+      }
+    } catch {
+      /* ignore errors on fast poll */
+    }
+  }, [upsertBus]);
+
+  useEffect(() => {
+    void refreshBuses();
+    const timer = setInterval(() => void refreshBuses(), 3000);
+    return () => clearInterval(timer);
+  }, [refreshBuses]);
 
   const handleSubmitComplaint = async () => {
     if (complaint.trim().length < 5) {
@@ -332,7 +356,7 @@ export function StudentPortal() {
               OpenStreetMap + Leaflet
             </span>
           </div>
-          <LiveMap buses={activeBuses} />
+          <LiveMap buses={activeBuses} isSimulationMaster={false} />
         </section>
       )}
 

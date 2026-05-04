@@ -398,13 +398,19 @@ export function AdminDashboard() {
                       <td className="py-2 pr-1">
                         <button
                           type="button"
-                          onClick={() =>
-                            setRows((prev) =>
-                              prev.filter(
-                                (item) => item.routeId !== row.routeId,
-                              ),
-                            )
-                          }
+                          onClick={async () => {
+                            if (window.confirm(`Are you sure you want to delete the route "${row.name}"?`)) {
+                              try {
+                                await axios.delete(`/api/routes/${row.routeId}`);
+                                setRows((prev) =>
+                                  prev.filter((item) => item.routeId !== row.routeId)
+                                );
+                                pushNotification("Route deleted successfully.", "success");
+                              } catch {
+                                pushNotification("Failed to delete route.", "error");
+                              }
+                            }
+                          }}
                           className="rounded-lg border border-red-400/30 px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-red-400 whitespace-nowrap"
                         >
                           <span className="hidden sm:inline">Delete</span>

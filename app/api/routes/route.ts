@@ -82,11 +82,16 @@ export async function POST(request: Request) {
     });
 
     const routeId = String(created._id);
-    await ensureBusDocumentForRoute({
+    const { error: busError } = await ensureBusDocumentForRoute({
       routeId,
       routeName: name,
-      routePathLabel: name,
     });
+
+    if (busError) {
+      // Rollback route creation if no bus slots available
+      await RouteModel.findByIdAndDelete(routeId);
+      return NextResponse.json({ error: busError }, { status: 409 });
+    }
 
     return NextResponse.json({ route: created.toObject() }, { status: 201 });
   } catch (error: unknown) {
