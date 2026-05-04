@@ -22,6 +22,21 @@ type BusMateState = {
   upsertBus: (bus: Bus) => void;
   updateSeatAvailability: (busId: string, seats: number) => void;
   updateBusFromFeed: (busId: string, payload: Partial<Bus>) => void;
+  /**
+   * Update a bus's trip lifecycle state fields.
+   * Used by the animation engine when trip starts, traffic delay occurs, or bus arrives.
+   */
+  updateBusTripState: (
+    busId: string,
+    patch: {
+      status?: "active" | "idle";
+      gpsActive?: boolean;
+      eta?: number;
+      startCoord?: { lat: number; lng: number };
+      endCoord?: { lat: number; lng: number };
+      currentCoord?: { lat: number; lng: number };
+    },
+  ) => void;
   pushNotification: (message: string, type?: NotificationType) => void;
   /** Merge server-persisted broadcasts without duplicating ids (student portal polling). */
   mergeBroadcastNotifications: (
@@ -75,6 +90,13 @@ export const useBusMateStore = create<BusMateState>((set, get) => ({
           merged.position = { ...bus.position, ...payload.position };
         }
         return merged;
+      }),
+    })),
+  updateBusTripState: (busId, patch) =>
+    set((state) => ({
+      buses: state.buses.map((bus) => {
+        if (bus.id !== busId) return bus;
+        return { ...bus, ...patch };
       }),
     })),
   pushNotification: (message, type = "info") =>

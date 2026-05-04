@@ -3,7 +3,7 @@
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Clock3, Search, Users, X } from "lucide-react";
+import { BellRing, Clock3, Search, Users, Wifi, WifiOff, X } from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
@@ -230,6 +230,77 @@ export function StudentPortal() {
     return map;
   }, [buses, routes]);
 
+  /**
+   * Live ETA map: routeId → animated eta from the Zustand store.
+   * Falls back to the server-polled eta from the routes array.
+   */
+  const busEtaByRouteId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of buses) {
+      if (b.routeId && typeof b.eta === "number") {
+        map.set(b.routeId, b.eta);
+      }
+    }
+    // Also match by route name in case routeId isn't set
+    for (const r of routes) {
+      if (map.has(r.id)) continue;
+      const label = r.name.trim().toLowerCase();
+      const match = buses.find(
+        (b) => (b.routeName ?? b.name).trim().toLowerCase() === label,
+      );
+      if (match && typeof match.eta === "number") {
+        map.set(r.id, match.eta);
+      }
+    }
+    return map;
+  }, [buses, routes]);
+
+  /**
+   * GPS active map: routeId → gpsActive flag from the Zustand store.
+   */
+  const busGpsActiveByRouteId = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const b of buses) {
+      if (b.routeId) {
+        map.set(b.routeId, b.gpsActive !== false);
+      }
+    }
+    for (const r of routes) {
+      if (map.has(r.id)) continue;
+      const label = r.name.trim().toLowerCase();
+      const match = buses.find(
+        (b) => (b.routeName ?? b.name).trim().toLowerCase() === label,
+      );
+      if (match) {
+        map.set(r.id, match.gpsActive !== false);
+      }
+    }
+    return map;
+  }, [buses, routes]);
+
+  /**
+   * Bus status map: routeId → status ("active" | "idle") from the Zustand store.
+   */
+  const busStatusByRouteId = useMemo(() => {
+    const map = new Map<string, "active" | "idle">();
+    for (const b of buses) {
+      if (b.routeId && b.status) {
+        map.set(b.routeId, b.status);
+      }
+    }
+    for (const r of routes) {
+      if (map.has(r.id)) continue;
+      const label = r.name.trim().toLowerCase();
+      const match = buses.find(
+        (b) => (b.routeName ?? b.name).trim().toLowerCase() === label,
+      );
+      if (match?.status) {
+        map.set(r.id, match.status);
+      }
+    }
+    return map;
+  }, [buses, routes]);
+
   const activeBuses = useMemo(() => {
     return enrichedBuses.filter((bus) => bus.isLive);
   }, [enrichedBuses]);
@@ -365,31 +436,57 @@ export function StudentPortal() {
               !routesError &&
               filteredRoutes.map((route) => {
                 const seats = seatLabelForRoute(route);
+                // Prefer live animated ETA from store; fall back to server-polled value
+                const liveEta = busEtaByRouteId.get(route.id) ?? route.eta;
+                const gpsOn = busGpsActiveByRouteId.get(route.id) ?? false;
+                const busStatus = busStatusByRouteId.get(route.id);
+                // Active = store says "active" OR driver has tripInProgress flag
+                const isActive =
+                  busStatus === "active" || route.tripInProgress;
                 return (
                   <div
                     key={route.id}
                     className="rounded-2xl bg-white/5 p-3 sm:p-4"
                   >
-                    <p className="text-sm font-semibold text-white">
-                      {route.name}
-                    </p>
-                    <p className="text-xs text-amber-200/70">
-                      Driver: {route.driver}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {route.name}
+                        </p>
+                        <p className="text-xs text-amber-200/70">
+                          Driver: {route.driver}
+                        </p>
+                      </div>
+                      {/* GPS signal indicator */}
+                      <span
+                        title={gpsOn ? "GPS active" : "GPS inactive"}
+                        className={`mt-0.5 shrink-0 rounded-full p-1 ${
+                          gpsOn
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-slate-700/40 text-slate-500"
+                        }`}
+                      >
+                        {gpsOn ? (
+                          <Wifi className="h-3.5 w-3.5" />
+                        ) : (
+                          <WifiOff className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                    </div>
                     <div className="mt-2 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
-                            route.tripInProgress
+                            isActive
                               ? "bg-amber-500/30 text-amber-200"
                               : "bg-slate-700/50 text-slate-300"
                           }`}
                         >
-                          {route.tripInProgress ? "Active trip" : "Idle"}
+                          {isActive ? "Active trip" : "Idle"}
                         </span>
-                        {route.eta != null && (
+                        {isActive && liveEta != null && (
                           <span className="font-medium text-amber-300">
-                            ETA: {route.eta} min
+                            ETA: {liveEta} min
                           </span>
                         )}
                       </div>

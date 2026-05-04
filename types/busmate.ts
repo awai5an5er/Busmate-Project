@@ -16,6 +16,16 @@ export type Bus = {
   totalSeats?: number;
   /** True when the driver has started a trip (synced to MongoDB `isLive`) */
   isLive: boolean;
+  /** Trip state: active while driver is running a trip, idle otherwise */
+  status?: "active" | "idle";
+  /** Whether GPS signal is active for this bus */
+  gpsActive?: boolean;
+  /** Fixed start coordinate for the current simulated route (generated on trip start) */
+  startCoord?: { lat: number; lng: number };
+  /** Fixed destination coordinate for the current simulated route */
+  endCoord?: { lat: number; lng: number };
+  /** Latest GPS coordinate pushed to MongoDB every 5 s */
+  currentCoord?: { lat: number; lng: number };
   /** Route stops with coordinates for displaying route path on map */
   routeStops?: Array<{
     name: string;

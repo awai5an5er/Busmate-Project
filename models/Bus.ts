@@ -7,10 +7,20 @@ export interface IBus extends Document {
   seatsAvailable: number;
   totalSeats: number;
   isLive: boolean;
+  /** Trip lifecycle state */
+  status?: "active" | "idle";
+  /** Whether GPS is currently transmitting */
+  gpsActive?: boolean;
   position: {
     lat: number;
     lng: number;
   };
+  /** Generated start coordinate for the current simulated trip */
+  startCoord?: { lat: number; lng: number };
+  /** Generated destination coordinate for the current simulated trip */
+  endCoord?: { lat: number; lng: number };
+  /** Latest GPS coordinate synced from the client every 5 s */
+  currentCoord?: { lat: number; lng: number };
   /** Stable id used by the client / mock data (e.g. bus-101) when it is not a MongoDB ObjectId */
   shortId?: string;
   driverId?: mongoose.Types.ObjectId;
@@ -51,6 +61,15 @@ const BusSchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      enum: ["active", "idle"],
+      default: "idle",
+    },
+    gpsActive: {
+      type: Boolean,
+      default: false,
+    },
     position: {
       lat: {
         type: Number,
@@ -60,6 +79,18 @@ const BusSchema: Schema = new Schema(
         type: Number,
         required: true,
       },
+    },
+    startCoord: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    endCoord: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    currentCoord: {
+      lat: { type: Number },
+      lng: { type: Number },
     },
     shortId: {
       type: String,
