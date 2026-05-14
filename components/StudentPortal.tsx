@@ -330,7 +330,7 @@ export function StudentPortal() {
               Interactive Live Map
             </h2>
             <span className="w-fit rounded-full bg-amber-500/20 px-3 py-1 text-xs text-amber-200">
-              OpenStreetMap + Leaflet
+              OpenStreetMap + react-map-gl (MapLibre)
             </span>
           </div>
           <LiveMap buses={activeBuses} tripControl="student" />
@@ -344,7 +344,7 @@ export function StudentPortal() {
               Interactive Live Map
             </h2>
             <span className="w-fit rounded-full bg-amber-500/20 px-3 py-1 text-xs text-amber-200">
-              OpenStreetMap + Leaflet
+              OpenStreetMap + react-map-gl (MapLibre)
             </span>
           </div>
           <div className="flex h-[360px] items-center justify-center rounded-2xl bg-[#0b162b]/50">

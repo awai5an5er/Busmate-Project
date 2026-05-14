@@ -1,40 +1,53 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  Polyline,
-} from "react-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import Map, { Marker, Popup } from "react-map-gl/maplibre";
+import type { StyleSpecification } from "maplibre-gl";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import type { Bus } from "@/types/busmate";
 import { useBusMateStore } from "@/store/useBusMateStore";
-import { getBusLeafletIcon } from "@/lib/busLeafletIcon";
-import { getStartStopIcons } from "@/lib/startStopIcons";
+import { busMapMarkerHtml } from "@/lib/busMapMarkerHtml";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const OSM_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
 const LAHORE_BOUNDS = {
   latMin: 31.45,
-  latMax: 31.60,
+  latMax: 31.6,
   lngMin: 74.25,
   lngMax: 74.45,
 };
 const BUS_SPEED_KMH = 30;
-const TICK_MS = 1500; // animation interval
-const GPS_SYNC_MS = 5000; // MongoDB sync interval
-const ARRIVAL_THRESHOLD_KM = 0.05; // 50 m
-const DELAY_MIN_S = 30; // min seconds before a traffic delay
-const DELAY_MAX_S = 60; // max seconds before a traffic delay
-const DELAY_PAUSE_MIN_S = 10; // min pause duration
-const DELAY_PAUSE_MAX_S = 20; // max pause duration
+const TICK_MS = 1500;
+const GPS_SYNC_MS = 5000;
+const ARRIVAL_THRESHOLD_KM = 0.05;
+const DELAY_MIN_S = 30;
+const DELAY_MAX_S = 60;
+const DELAY_PAUSE_MIN_S = 10;
+const DELAY_PAUSE_MAX_S = 20;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Haversine distance in km between two lat/lng points. */
 function haversineKm(
   lat1: number,
   lng1: number,
@@ -52,7 +65,6 @@ function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** Linear interpolation between two lat/lng points at fraction t ∈ [0,1]. */
 function lerpLatLng(
   start: { lat: number; lng: number },
   end: { lat: number; lng: number },
@@ -64,15 +76,6 @@ function lerpLatLng(
   };
 }
 
-/** Random float in [min, max]. */
-function randFloat(min: number, max: number) {
-  return min + Math.random() * (max - min);
-}
-
-/**
- * Approximate fraction along the start→end great-circle segment.
- * Matches positions emitted when the bus is interpolated on that segment.
- */
 function segmentProgress(
   start: { lat: number; lng: number },
   end: { lat: number; lng: number },
@@ -84,7 +87,10 @@ function segmentProgress(
   return Math.min(1, Math.max(0, d0 / total));
 }
 
-/** Generate a random coordinate within Lahore bounding box. */
+function randFloat(min: number, max: number) {
+  return min + Math.random() * (max - min);
+}
+
 function randomLahoreCoord() {
   return {
     lat: randFloat(LAHORE_BOUNDS.latMin, LAHORE_BOUNDS.latMax),
@@ -92,24 +98,20 @@ function randomLahoreCoord() {
   };
 }
 
-// ─── Per-bus simulation state (stored in a ref so it survives re-renders) ────
 type BusSimState = {
   startCoord: { lat: number; lng: number };
   endCoord: { lat: number; lng: number };
-  progress: number; // 0 → 1
+  progress: number;
   totalDistKm: number;
   arrived: boolean;
   journeyNotified: boolean;
-  // traffic delay
-  nextDelayAt: number; // elapsed seconds until next delay triggers
+  nextDelayAt: number;
   delayActive: boolean;
-  delayEndsAt: number; // elapsed seconds when delay ends
-  elapsedS: number; // cumulative un-paused travel seconds
-  /** Student view: extrapolate from last server-reported progress */
+  delayEndsAt: number;
+  elapsedS: number;
   lastSyncedProgress?: number;
   lastSyncAtMs?: number;
   lastServerCoord?: { lat: number; lng: number };
-  /** Rounded coord key of last applied server `currentCoord` sample */
   appliedServerCoordKey?: string;
 };
 
@@ -118,20 +120,59 @@ export type TripControl = "driver" | "student";
 type MapComponentProps = {
   buses: Bus[];
   tripControl?: TripControl;
+  /** When true (driver portal), use device GPS instead of simulated movement. */
+  useDeviceGps?: boolean;
 };
 
-const fallbackCenter: [number, number] = [31.5204, 74.3587];
+const fallbackCenter = { latitude: 31.5204, longitude: 74.3587, zoom: 13 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+/** Student map: show server / Redis GPS as-is instead of interpolating on start→end chord. */
+function shouldUseLiveBusCoord(bus: Bus, studentView: boolean): boolean {
+  if (!studentView || !bus.isLive) return false;
+  const c = bus.currentCoord;
+  return (
+    typeof c?.lat === "number" &&
+    typeof c?.lng === "number" &&
+    Number.isFinite(c.lat) &&
+    Number.isFinite(c.lng)
+  );
+}
+
+function routeEndFromBus(bus: Bus): { lat: number; lng: number } | null {
+  if (bus.routeStops && bus.routeStops.length >= 2) {
+    const sorted = [...bus.routeStops].sort((a, b) => a.order - b.order);
+    const last = sorted[sorted.length - 1];
+    return { lat: last.lat, lng: last.lng };
+  }
+  if (bus.endCoord) return { lat: bus.endCoord.lat, lng: bus.endCoord.lng };
+  return null;
+}
+
+function routeStartFromBus(bus: Bus): { lat: number; lng: number } | null {
+  if (bus.routeStops && bus.routeStops.length >= 2) {
+    const sorted = [...bus.routeStops].sort((a, b) => a.order - b.order);
+    const first = sorted[0];
+    return { lat: first.lat, lng: first.lng };
+  }
+  if (bus.startCoord) return { lat: bus.startCoord.lat, lng: bus.startCoord.lng };
+  return null;
+}
+
 export function MapComponent({
   buses,
   tripControl = "driver",
+  useDeviceGps = false,
 }: MapComponentProps) {
-  const activeBuses = useMemo(() => buses.filter((b) => b.isLive), [buses]);
-  const hasActiveBuses = activeBuses.length > 0;
-  const activeBusesRef = useRef(activeBuses);
-  activeBusesRef.current = activeBuses;
   const isStudentView = tripControl === "student";
+  const liveTripBuses = useMemo(() => buses.filter((b) => b.isLive), [buses]);
+  const displayBuses = useMemo(() => {
+    if (useDeviceGps && !isStudentView) return buses;
+    return liveTripBuses;
+  }, [buses, useDeviceGps, isStudentView, liveTripBuses]);
+
+  const hasMapContent = displayBuses.length > 0;
+  const displayBusesRef = useRef(displayBuses);
+  displayBusesRef.current = displayBuses;
 
   const pushNotification = useBusMateStore((state) => state.pushNotification);
   const updateBusFromFeed = useBusMateStore((state) => state.updateBusFromFeed);
@@ -139,20 +180,40 @@ export function MapComponent({
     (state) => state.updateBusTripState,
   );
 
-  // Map from busId → animated [lat, lng] for rendering
   const [animatedPositions, setAnimatedPositions] = useState<
     Record<string, [number, number]>
   >({});
+  const [deviceCoords, setDeviceCoords] = useState<
+    Record<string, [number, number]>
+  >({});
+  const deviceCoordsRef = useRef(deviceCoords);
+  deviceCoordsRef.current = deviceCoords;
 
-  // Per-bus simulation state — never triggers re-render on its own
+  const [geoError, setGeoError] = useState(false);
+  const [popupBusId, setPopupBusId] = useState<string | null>(null);
+  const [viewState, setViewState] = useState(() => {
+    const b = displayBuses[0];
+    if (b) {
+      return {
+        latitude: b.position.lat,
+        longitude: b.position.lng,
+        zoom: 13,
+      };
+    }
+    return fallbackCenter;
+  });
+
   const simRef = useRef<Record<string, BusSimState>>({});
-
-  // Track which buses are currently being simulated to avoid duplicate inits
   const simulatingRef = useRef<Set<string>>(new Set());
+  const seededRouteCoordsRef = useRef<Set<string>>(new Set());
+  const didCenterOnGpsRef = useRef(false);
+  /** Avoid resetting the map camera on every parent poll / re-render (fixes student map jitter). */
+  const studentMapCenteredRef = useRef(false);
+  const lastStudentCenterKeyRef = useRef<string | null>(null);
 
-  // ── Initialise simulation state for a bus when it goes live ─────────────
   const initBusSim = useCallback(
     (bus: Bus) => {
+      if (useDeviceGps && !isStudentView) return;
       if (simulatingRef.current.has(bus.id)) return;
       if (isStudentView && (!bus.startCoord || !bus.endCoord)) return;
       simulatingRef.current.add(bus.id);
@@ -241,18 +302,16 @@ export function MapComponent({
         });
       }
     },
-    [updateBusTripState, isStudentView],
+    [updateBusTripState, isStudentView, useDeviceGps],
   );
 
-  // ── Remove sim state when a bus goes offline ─────────────────────────────
   const cleanupBusSim = useCallback((busId: string) => {
     simulatingRef.current.delete(busId);
     delete simRef.current[busId];
   }, []);
 
-  // ── Main animation tick ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasActiveBuses) return;
+    if (!hasMapContent || (useDeviceGps && !isStudentView)) return;
 
     const intervalId = setInterval(() => {
       const tickS = TICK_MS / 1000;
@@ -260,8 +319,29 @@ export function MapComponent({
       setAnimatedPositions((prev) => {
         const updated = { ...prev };
 
-        for (const bus of activeBusesRef.current) {
-          // Initialise if not yet started
+        for (const bus of displayBusesRef.current) {
+          if (isStudentView && shouldUseLiveBusCoord(bus, true)) {
+            const cc = bus.currentCoord!;
+            updated[bus.id] = [cc.lat, cc.lng];
+            const end =
+              routeEndFromBus(bus) ??
+              (bus.endCoord
+                ? { lat: bus.endCoord.lat, lng: bus.endCoord.lng }
+                : null);
+            const remainingDistKm = end
+              ? haversineKm(cc.lat, cc.lng, end.lat, end.lng)
+              : null;
+            const etaMin =
+              remainingDistKm !== null
+                ? Math.max(
+                    0,
+                    Math.ceil((remainingDistKm / BUS_SPEED_KMH) * 60),
+                  )
+                : bus.eta;
+            updateBusFromFeed(bus.id, { eta: etaMin });
+            continue;
+          }
+
           if (!simRef.current[bus.id]) {
             initBusSim(bus);
           }
@@ -269,12 +349,12 @@ export function MapComponent({
           const sim = simRef.current[bus.id];
           if (!sim || sim.arrived) continue;
 
-          // ── Student view: follow driver's persisted route + GPS samples ─
           if (isStudentView) {
             const cc = bus.currentCoord ?? {
               lat: bus.position.lat,
               lng: bus.position.lng,
             };
+
             const pServer = segmentProgress(
               sim.startCoord,
               sim.endCoord,
@@ -321,7 +401,6 @@ export function MapComponent({
             continue;
           }
 
-          // ── First tick: fire "started journey" notification ──────────────
           if (!sim.journeyNotified) {
             sim.journeyNotified = true;
             const busName = bus.routeName ?? bus.name;
@@ -331,31 +410,24 @@ export function MapComponent({
             );
           }
 
-          // ── Traffic delay logic ──────────────────────────────────────────
           if (sim.delayActive) {
             if (sim.elapsedS >= sim.delayEndsAt) {
-              // Delay over — resume
               sim.delayActive = false;
               sim.nextDelayAt = sim.elapsedS + randFloat(DELAY_MIN_S, DELAY_MAX_S);
             } else {
-              // Still paused — skip advancing position this tick
               sim.elapsedS += tickS;
               continue;
             }
           }
 
-          // Check if we should trigger the next delay
           if (sim.elapsedS >= sim.nextDelayAt && !sim.arrived) {
             const pauseDuration = randFloat(DELAY_PAUSE_MIN_S, DELAY_PAUSE_MAX_S);
             sim.delayActive = true;
             sim.delayEndsAt = sim.elapsedS + pauseDuration;
 
-            // Remaining distance & ETA after delay
-            const remainingDistKm =
-              sim.totalDistKm * (1 - sim.progress);
+            const remainingDistKm = sim.totalDistKm * (1 - sim.progress);
             const delayedEtaMin = Math.ceil(
-              (remainingDistKm / BUS_SPEED_KMH) * 60 +
-                pauseDuration / 60,
+              (remainingDistKm / BUS_SPEED_KMH) * 60 + pauseDuration / 60,
             );
 
             const busName = bus.routeName ?? bus.name;
@@ -364,39 +436,36 @@ export function MapComponent({
               "warning",
             );
 
-            // Update store eta
             updateBusTripState(bus.id, { eta: delayedEtaMin });
 
             sim.elapsedS += tickS;
             continue;
           }
 
-          // ── Advance progress ─────────────────────────────────────────────
-          // stepFraction = distance covered this tick / total distance
           const distPerTickKm = (BUS_SPEED_KMH * tickS) / 3600;
           const stepFraction = distPerTickKm / sim.totalDistKm;
           sim.progress = Math.min(sim.progress + stepFraction, 1);
           sim.elapsedS += tickS;
 
-          // ── Interpolate position ─────────────────────────────────────────
           const pos = lerpLatLng(sim.startCoord, sim.endCoord, sim.progress);
           updated[bus.id] = [pos.lat, pos.lng];
 
-          // ── Recalculate remaining ETA ────────────────────────────────────
-          const remainingDistKm =
-            haversineKm(pos.lat, pos.lng, sim.endCoord.lat, sim.endCoord.lng);
+          const remainingDistKm = haversineKm(
+            pos.lat,
+            pos.lng,
+            sim.endCoord.lat,
+            sim.endCoord.lng,
+          );
           const etaMin = Math.max(
             0,
             Math.ceil((remainingDistKm / BUS_SPEED_KMH) * 60),
           );
 
-          // Update store with new position + ETA
           updateBusFromFeed(bus.id, {
             position: { x: 0, y: 0, lat: pos.lat, lng: pos.lng },
             eta: etaMin,
           });
 
-          // ── Arrival detection ────────────────────────────────────────────
           if (remainingDistKm < ARRIVAL_THRESHOLD_KM) {
             sim.arrived = true;
             const busName = bus.routeName ?? bus.name;
@@ -412,7 +481,6 @@ export function MapComponent({
               eta: 0,
             });
 
-            // Sync final state to MongoDB
             void axios
               .patch(`/api/buses/${bus.id}`, {
                 status: "idle",
@@ -429,30 +497,68 @@ export function MapComponent({
 
     return () => clearInterval(intervalId);
   }, [
-    hasActiveBuses,
+    hasMapContent,
     isStudentView,
     pushNotification,
     updateBusFromFeed,
     updateBusTripState,
     initBusSim,
+    useDeviceGps,
   ]);
 
-  // ── Clean up sim state for buses that go offline ─────────────────────────
   useEffect(() => {
-    const activeBusIds = new Set(activeBuses.map((b) => b.id));
+    const activeBusIds = new Set(displayBuses.map((b) => b.id));
     for (const busId of simulatingRef.current) {
       if (!activeBusIds.has(busId)) {
         cleanupBusSim(busId);
       }
     }
-  }, [activeBuses, cleanupBusSim]);
+  }, [displayBuses, cleanupBusSim]);
 
-  // ── GPS sync: PATCH every 5 s with current position (driver portal only) ─
   useEffect(() => {
-    if (!hasActiveBuses || isStudentView) return;
+    if (!hasMapContent || isStudentView || !useDeviceGps) return;
+    if (!navigator.geolocation) {
+      setGeoError(true);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGeoError(false);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setDeviceCoords((prev) => {
+          const next = { ...prev };
+          for (const bus of displayBusesRef.current) {
+            next[bus.id] = [lat, lng];
+          }
+          return next;
+        });
+        if (!didCenterOnGpsRef.current) {
+          didCenterOnGpsRef.current = true;
+          setViewState((vs) => ({
+            ...vs,
+            latitude: lat,
+            longitude: lng,
+            zoom: 15,
+          }));
+        }
+      },
+      () => setGeoError(true),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 25000 },
+    );
+
+    return () => {
+      didCenterOnGpsRef.current = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [hasMapContent, isStudentView, useDeviceGps]);
+
+  useEffect(() => {
+    if (!hasMapContent || isStudentView || useDeviceGps) return;
 
     const syncId = setInterval(() => {
-      for (const bus of activeBuses) {
+      for (const bus of displayBusesRef.current) {
         const sim = simRef.current[bus.id];
         if (!sim || sim.arrived) continue;
 
@@ -480,65 +586,188 @@ export function MapComponent({
     }, GPS_SYNC_MS);
 
     return () => clearInterval(syncId);
-  }, [hasActiveBuses, activeBuses, isStudentView]);
+  }, [hasMapContent, isStudentView, useDeviceGps]);
 
-  // ── Route polyline data (memoised) ───────────────────────────────────────
-  const routeData = useMemo(() => {
-    const { startIcon, stopIcon } = getStartStopIcons();
+  useEffect(() => {
+    if (!hasMapContent || isStudentView || !useDeviceGps) return;
 
-    // Prefer routeStops if available; fall back to sim start/end
-    return activeBuses.map((bus) => {
-      const sim = simRef.current[bus.id];
+    const syncId = setInterval(() => {
+      for (const bus of displayBusesRef.current) {
+        const pair = deviceCoordsRef.current[bus.id];
+        if (!pair) continue;
+        const [lat, lng] = pair;
+        const end = routeEndFromBus(bus);
+        const start = routeStartFromBus(bus);
+        if (start && end && !seededRouteCoordsRef.current.has(bus.id)) {
+          seededRouteCoordsRef.current.add(bus.id);
+          void axios
+            .patch(`/api/buses/${bus.id}`, {
+              startCoord: start,
+              endCoord: end,
+              status: bus.isLive ? "active" : "idle",
+              gpsActive: true,
+            })
+            .catch(() => null);
+          updateBusTripState(bus.id, {
+            startCoord: start,
+            endCoord: end,
+            gpsActive: true,
+            status: bus.isLive ? "active" : "idle",
+          });
+        }
 
-      // Use routeStops path if present
-      if (bus.routeStops && bus.routeStops.length >= 2) {
-        const sortedStops = [...bus.routeStops].sort(
-          (a, b) => a.order - b.order,
-        );
-        const path = sortedStops.map(
-          (s) => [s.lat, s.lng] as [number, number],
-        );
-        return {
-          busId: bus.id,
-          routeName: bus.routeName ?? bus.name,
-          path,
-          startPos: path[0],
-          endPos: path[path.length - 1],
-          startIcon,
-          stopIcon,
-        };
+        const etaMin = end
+          ? Math.max(
+              0,
+              Math.ceil(
+                (haversineKm(lat, lng, end.lat, end.lng) / BUS_SPEED_KMH) * 60,
+              ),
+            )
+          : bus.eta;
+
+        void axios
+          .patch(`/api/buses/${bus.id}`, {
+            currentCoord: { lat, lng },
+            eta: etaMin,
+            status: bus.isLive ? "active" : "idle",
+            gpsActive: true,
+          })
+          .catch(() => null);
+
+        updateBusFromFeed(bus.id, {
+          position: { x: 0, y: 0, lat, lng },
+          eta: etaMin,
+          currentCoord: { lat, lng },
+          gpsActive: true,
+        });
       }
+    }, GPS_SYNC_MS);
 
-      // Fall back to generated sim start/end coords
-      if (sim) {
-        const path: [number, number][] = [
-          [sim.startCoord.lat, sim.startCoord.lng],
-          [sim.endCoord.lat, sim.endCoord.lng],
-        ];
-        return {
-          busId: bus.id,
-          routeName: bus.routeName ?? bus.name,
-          path,
-          startPos: path[0],
-          endPos: path[1],
-          startIcon,
-          stopIcon,
-        };
+    return () => clearInterval(syncId);
+  }, [hasMapContent, isStudentView, useDeviceGps, updateBusFromFeed, updateBusTripState]);
+
+  const busMarkerPosition = useCallback(
+    (bus: Bus): [number, number] => {
+      if (useDeviceGps && !isStudentView && deviceCoords[bus.id]) {
+        return deviceCoords[bus.id]!;
       }
+      if (shouldUseLiveBusCoord(bus, isStudentView)) {
+        const c = bus.currentCoord!;
+        return [c.lat, c.lng];
+      }
+      return (
+        animatedPositions[bus.id] ?? [bus.position.lat, bus.position.lng]
+      );
+    },
+    [useDeviceGps, isStudentView, deviceCoords, animatedPositions],
+  );
 
-      return null;
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBuses, animatedPositions]); // re-compute when positions change so polyline stays in sync with sim state
+  const openBusForPopup = useMemo(() => {
+    if (!popupBusId) return null;
+    return displayBuses.find((b) => b.id === popupBusId) ?? null;
+  }, [popupBusId, displayBuses]);
 
-  const center: [number, number] = hasActiveBuses
-    ? [activeBuses[0].position.lat, activeBuses[0].position.lng]
-    : fallbackCenter;
+  const busPopupEl = useMemo(() => {
+    if (!openBusForPopup) return null;
+    const bus = openBusForPopup;
+    const [lat, lng] = busMarkerPosition(bus);
+    const routeTitle = bus.routeName ?? bus.name;
+    const driver = bus.driverName ?? "—";
+    const sim = simRef.current[bus.id];
+    const endCoord = routeEndFromBus(bus);
+    const remainingDistKm = sim
+      ? haversineKm(lat, lng, sim.endCoord.lat, sim.endCoord.lng)
+      : endCoord
+        ? haversineKm(lat, lng, endCoord.lat, endCoord.lng)
+        : null;
+    const etaMin =
+      remainingDistKm !== null
+        ? Math.max(0, Math.ceil((remainingDistKm / BUS_SPEED_KMH) * 60))
+        : bus.eta;
 
-  // ── No active buses placeholder ──────────────────────────────────────────
-  if (!hasActiveBuses) {
     return (
-      <div className="relative h-[360px] overflow-hidden rounded-2xl bg-slate-50 flex items-center justify-center">
+      <Popup
+        key={`popup-bus-${bus.id}`}
+        longitude={lng}
+        latitude={lat}
+        anchor="top"
+        onClose={() => setPopupBusId(null)}
+        closeOnClick={false}
+      >
+        <div className="min-w-[200px] space-y-1 text-slate-900">
+          <p className="text-sm font-semibold leading-tight">{routeTitle}</p>
+          <p className="text-sm text-slate-700">Driver: {driver}</p>
+          <p className="text-sm text-slate-700">ETA: {etaMin} min</p>
+          <p className="text-sm text-slate-700">Seats: {bus.seatsAvailable}</p>
+          {bus.status && (
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
+                bus.status === "active"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {bus.status === "active" ? "Active trip" : "Idle"}
+            </span>
+          )}
+        </div>
+      </Popup>
+    );
+  }, [
+    openBusForPopup,
+    popupBusId,
+    busMarkerPosition,
+  ]);
+
+  useEffect(() => {
+    if (!hasMapContent) {
+      studentMapCenteredRef.current = false;
+      lastStudentCenterKeyRef.current = null;
+      return;
+    }
+    if (useDeviceGps && !isStudentView) return;
+
+    const b = displayBuses[0];
+    if (!b) return;
+
+    if (isStudentView) {
+      const live = shouldUseLiveBusCoord(b, true);
+      const focusLat = live ? b.currentCoord!.lat : b.position.lat;
+      const focusLng = live ? b.currentCoord!.lng : b.position.lng;
+      const busKey = `${b.id}|${live ? "live" : "sim"}`;
+      const prev = lastStudentCenterKeyRef.current;
+      const prevBusId = prev?.split("|")[0] ?? null;
+      const prevMode = prev?.split("|")[1] ?? null;
+      const mode = live ? "live" : "sim";
+
+      const needCenter =
+        !studentMapCenteredRef.current ||
+        prevBusId !== b.id ||
+        (prevMode === "sim" && mode === "live");
+
+      if (needCenter) {
+        studentMapCenteredRef.current = true;
+        lastStudentCenterKeyRef.current = busKey;
+        setViewState((vs) => ({
+          ...vs,
+          latitude: focusLat,
+          longitude: focusLng,
+          zoom: 14,
+        }));
+      }
+      return;
+    }
+
+    setViewState((vs) => ({
+      ...vs,
+      latitude: b.position.lat,
+      longitude: b.position.lng,
+    }));
+  }, [displayBuses, hasMapContent, useDeviceGps, isStudentView]);
+
+  if (!hasMapContent) {
+    return (
+      <div className="relative flex h-[360px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -562,7 +791,7 @@ export function MapComponent({
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-700">Standby</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="mt-1 text-xs text-slate-500">
               Waiting for active bus signals...
             </p>
           </div>
@@ -571,104 +800,46 @@ export function MapComponent({
     );
   }
 
-  // ── Map render ───────────────────────────────────────────────────────────
   return (
     <div className="relative h-[360px] overflow-hidden rounded-2xl">
-      <MapContainer center={center} zoom={13} className="h-full w-full">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {/* Route polylines + start/stop markers */}
-        {routeData.map((data) => {
-          if (!data) return null;
-          return (
-            <div key={`route-group-${data.busId}`}>
-              {/* Blue route polyline */}
-              <Polyline
-                positions={data.path}
-                pathOptions={{ color: "#3B82F6", weight: 4, opacity: 0.8 }}
-              />
-
-              {/* Start marker (green) */}
-              <Marker position={data.startPos} icon={data.startIcon}>
-                <Popup>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {data.routeName} — Start
-                  </div>
-                </Popup>
-              </Marker>
-
-              {/* Destination marker (red) */}
-              <Marker position={data.endPos} icon={data.stopIcon}>
-                <Popup>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {data.routeName} — Destination
-                  </div>
-                </Popup>
-              </Marker>
-            </div>
-          );
-        })}
-
-        {/* Animated bus markers */}
-        {activeBuses.map((bus) => {
-          const animPos = animatedPositions[bus.id] ?? [
-            bus.position.lat,
-            bus.position.lng,
-          ];
+      {geoError && useDeviceGps && !isStudentView && (
+        <div className="absolute left-2 right-2 top-2 z-10 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Location unavailable. Allow browser location access to broadcast your
+          position.
+        </div>
+      )}
+      <Map
+        {...viewState}
+        onMove={(evt) => setViewState(evt.viewState)}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle={OSM_STYLE}
+      >
+        {displayBuses.map((bus) => {
+          const [lat, lng] = busMarkerPosition(bus);
           const routeTitle = bus.routeName ?? bus.name;
-          const driver = bus.driverName ?? "—";
-          const sim = simRef.current[bus.id];
-          const remainingDistKm = sim
-            ? haversineKm(
-                animPos[0],
-                animPos[1],
-                sim.endCoord.lat,
-                sim.endCoord.lng,
-              )
-            : null;
-          const etaMin =
-            remainingDistKm !== null
-              ? Math.max(0, Math.ceil((remainingDistKm / BUS_SPEED_KMH) * 60))
-              : bus.eta;
 
           return (
             <Marker
               key={bus.id}
-              position={animPos}
-              icon={getBusLeafletIcon(bus.isLive)}
+              longitude={lng}
+              latitude={lat}
+              anchor="center"
             >
-              <Popup>
-                <div className="min-w-[200px] space-y-1 text-slate-900">
-                  <p className="text-sm font-semibold leading-tight">
-                    {routeTitle}
-                  </p>
-                  <p className="text-sm text-slate-700">Driver: {driver}</p>
-                  <p className="text-sm text-slate-700">
-                    ETA: {etaMin} min
-                  </p>
-                  <p className="text-sm text-slate-700">
-                    Seats: {bus.seatsAvailable}
-                  </p>
-                  {bus.status && (
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        bus.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {bus.status === "active" ? "Active trip" : "Idle"}
-                    </span>
-                  )}
-                </div>
-              </Popup>
+              <button
+                type="button"
+                className="cursor-pointer border-0 bg-transparent p-0"
+                aria-label={`${routeTitle} bus marker`}
+                dangerouslySetInnerHTML={{ __html: busMapMarkerHtml(bus.isLive) }}
+                onClick={() =>
+                  setPopupBusId((p) => (p === bus.id ? null : bus.id))
+                }
+              />
             </Marker>
           );
         })}
-      </MapContainer>
+
+        {busPopupEl}
+      </Map>
     </div>
   );
 }

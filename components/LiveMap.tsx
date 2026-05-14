@@ -22,9 +22,18 @@ export type { TripControl };
 export function LiveMap({
   buses,
   tripControl = "driver",
+  useDeviceGps = false,
 }: {
   buses: Bus[];
   tripControl?: TripControl;
+  /** Driver portal: use browser geolocation instead of simulated movement. */
+  useDeviceGps?: boolean;
 }) {
-  return <ClientMap buses={buses} tripControl={tripControl} />;
+  return (
+    <ClientMap
+      buses={buses}
+      tripControl={tripControl}
+      useDeviceGps={useDeviceGps}
+    />
+  );
 }

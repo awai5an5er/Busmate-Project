@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
+import { getCachedDriverLocations } from "@/lib/driverLocationRedis";
 import { ensureBusDocumentForRoute } from "@/lib/ensureBusForRoute";
 import {
   mapMongoBusToClient,
   type MongoBusLean,
 } from "@/lib/mapMongoBusToClient";
+import type { Bus } from "@/types/busmate";
 import { Bus as BusModel, Route as RouteModel } from "@/models";
 
 export async function GET(request: Request) {
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
       .limit(100)
       .lean();
 
-    const rows = await Promise.all(
+    const rowData = await Promise.all(
       routeDocs.map(async (route) => {
         const rid = String(route._id);
         const bus = await BusModel.findOne({ routeId: rid }).lean();
@@ -30,19 +32,49 @@ export async function GET(request: Request) {
         const eta = typeof bus?.eta === "number" ? bus.eta : undefined;
         const tripInProgress = Boolean(bus?.isLive);
 
-        // Map bus to client format if it exists
         const busData = bus ? mapMongoBusToClient(bus as MongoBusLean) : null;
 
         return {
-          ...route,
+          route,
           seatsAvailable,
           etaFromBus: eta,
           tripInProgress,
-          bus: busData,
-          stops: route.stops || [], // Include stops in the response
+          busData,
+          stops: route.stops || [],
         };
       }),
     );
+
+    const cacheIds = rowData
+      .map((row) => row.busData?.id)
+      .filter((id): id is string => Boolean(id));
+    const locMap = await getCachedDriverLocations(cacheIds);
+
+    const rows = rowData.map(({ route, ...rest }) => {
+      let bus: Bus | null = rest.busData;
+      if (bus) {
+        const cached = locMap.get(bus.id);
+        if (cached) {
+          bus = {
+            ...bus,
+            currentCoord: { lat: cached.lat, lng: cached.lng },
+            position: {
+              ...bus.position,
+              lat: cached.lat,
+              lng: cached.lng,
+            },
+          };
+        }
+      }
+      return {
+        ...route,
+        seatsAvailable: rest.seatsAvailable,
+        etaFromBus: rest.etaFromBus,
+        tripInProgress: rest.tripInProgress,
+        bus,
+        stops: rest.stops,
+      };
+    });
 
     return NextResponse.json({ rows });
   } catch (error: unknown) {

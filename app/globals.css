@@ -12,8 +12,3 @@ body {
   color: #e2e8f0;
 }
 
-/* Leaflet custom bus markers (divIcon) */
-.busmate-bus-marker {
-  background: transparent !important;
-  border: none !important;
-}

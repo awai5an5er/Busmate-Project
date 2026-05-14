@@ -26,14 +26,26 @@ export async function GET(request: NextRequest) {
     }
 
     let routeName: string | null = busDoc.route;
+    let routeStops: MongoBusLean["routeStops"];
     if (busDoc.routeId) {
-      const routeDoc = await RouteModel.findById(busDoc.routeId).select("name").lean();
-      if (routeDoc && typeof routeDoc === "object" && "name" in routeDoc) {
-        routeName = String((routeDoc as { name?: string }).name ?? busDoc.route);
+      const routeDoc = await RouteModel.findById(busDoc.routeId)
+        .select("name stops")
+        .lean();
+      if (routeDoc && typeof routeDoc === "object") {
+        if ("name" in routeDoc) {
+          routeName = String((routeDoc as { name?: string }).name ?? busDoc.route);
+        }
+        const stops = (routeDoc as { stops?: MongoBusLean["routeStops"] }).stops;
+        if (Array.isArray(stops) && stops.length > 0) {
+          routeStops = stops;
+        }
       }
     }
 
     const bus = mapMongoBusToClient(busDoc as MongoBusLean);
+    if (routeStops) {
+      bus.routeStops = routeStops;
+    }
 
     return NextResponse.json({
       bus,
