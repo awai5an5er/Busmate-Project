@@ -4,6 +4,8 @@ export interface IComplaint extends Document {
   message: string;
   studentId: string;
   studentName: string;
+  driverId?: string | null;
+  driverName?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,14 @@ const ComplaintSchema: Schema = new Schema(
     studentName: {
       type: String,
       required: true,
+    },
+    driverId: {
+      type: String,
+      required: false,
+    },
+    driverName: {
+      type: String,
+      required: false,
     },
   },
   { timestamps: true },

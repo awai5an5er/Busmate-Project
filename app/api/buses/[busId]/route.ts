@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { busFilter } from "@/lib/busFilter";
+import { cacheDriverLocation } from "@/lib/driverLocationRedis";
 import { Bus as BusModel } from "@/models";
 
 export async function PATCH(
@@ -15,6 +16,7 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
     const $set: Record<string, unknown> = {};
+    let wroteCurrentCoord = false;
 
     // Seat count
     const seatRaw = body.seatCount ?? body.seatsAvailable;
@@ -52,6 +54,7 @@ export async function PATCH(
       if (typeof coord.lat === "number" && typeof coord.lng === "number") {
         $set["currentCoord.lat"] = coord.lat;
         $set["currentCoord.lng"] = coord.lng;
+        wroteCurrentCoord = true;
       }
     }
 
@@ -88,6 +91,21 @@ export async function PATCH(
 
     if (!updated) {
       return NextResponse.json({ error: "Bus not found." }, { status: 404 });
+    }
+
+    if (
+      wroteCurrentCoord &&
+      typeof updated.currentCoord?.lat === "number" &&
+      typeof updated.currentCoord?.lng === "number"
+    ) {
+      const redisBusId = updated.shortId
+        ? String(updated.shortId)
+        : String(updated._id);
+      void cacheDriverLocation(redisBusId, {
+        lat: updated.currentCoord.lat,
+        lng: updated.currentCoord.lng,
+        updatedAt: Date.now(),
+      });
     }
 
     return NextResponse.json({ bus: updated });
