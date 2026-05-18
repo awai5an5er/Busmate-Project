@@ -9,6 +9,7 @@ import axios from "axios";
 import type { Bus } from "@/types/busmate";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { busMapMarkerHtml } from "@/lib/busMapMarkerHtml";
+import { studentMapMarkerHtml } from "@/lib/studentMapMarkerHtml";
 
 const OSM_STYLE: StyleSpecification = {
   version: 8,
@@ -127,6 +128,14 @@ type MapComponentProps = {
 const fallbackCenter = { latitude: 31.5204, longitude: 74.3587, zoom: 13 };
 
 /** Student map: show server / Redis GPS as-is instead of interpolating on start→end chord. */
+function zoomForDistanceKm(km: number): number {
+  if (km < 0.5) return 15;
+  if (km < 2) return 14;
+  if (km < 5) return 13;
+  if (km < 15) return 12;
+  return 11;
+}
+
 function shouldUseLiveBusCoord(bus: Bus, studentView: boolean): boolean {
   if (!studentView || !bus.isLive) return false;
   const c = bus.currentCoord;
@@ -190,6 +199,10 @@ export function MapComponent({
   deviceCoordsRef.current = deviceCoords;
 
   const [geoError, setGeoError] = useState(false);
+  const [studentLocation, setStudentLocation] = useState<
+    [number, number] | null
+  >(null);
+  const [studentGeoError, setStudentGeoError] = useState(false);
   const [popupBusId, setPopupBusId] = useState<string | null>(null);
   const [viewState, setViewState] = useState(() => {
     const b = displayBuses[0];
@@ -210,6 +223,7 @@ export function MapComponent({
   /** Avoid resetting the map camera on every parent poll / re-render (fixes student map jitter). */
   const studentMapCenteredRef = useRef(false);
   const lastStudentCenterKeyRef = useRef<string | null>(null);
+  const studentDualFitDoneRef = useRef(false);
 
   const initBusSim = useCallback(
     (bus: Bus) => {
@@ -555,6 +569,29 @@ export function MapComponent({
   }, [hasMapContent, isStudentView, useDeviceGps]);
 
   useEffect(() => {
+    if (!isStudentView || !hasMapContent) {
+      setStudentLocation(null);
+      setStudentGeoError(false);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setStudentGeoError(true);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setStudentGeoError(false);
+        setStudentLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      () => setStudentGeoError(true),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 25000 },
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [isStudentView, hasMapContent]);
+
+  useEffect(() => {
     if (!hasMapContent || isStudentView || useDeviceGps) return;
 
     const syncId = setInterval(() => {
@@ -723,6 +760,7 @@ export function MapComponent({
     if (!hasMapContent) {
       studentMapCenteredRef.current = false;
       lastStudentCenterKeyRef.current = null;
+      studentDualFitDoneRef.current = false;
       return;
     }
     if (useDeviceGps && !isStudentView) return;
@@ -748,11 +786,26 @@ export function MapComponent({
       if (needCenter) {
         studentMapCenteredRef.current = true;
         lastStudentCenterKeyRef.current = busKey;
+
+        let latitude = focusLat;
+        let longitude = focusLng;
+        let zoom = 14;
+
+        if (studentLocation) {
+          const [sLat, sLng] = studentLocation;
+          latitude = (focusLat + sLat) / 2;
+          longitude = (focusLng + sLng) / 2;
+          zoom = zoomForDistanceKm(
+            haversineKm(focusLat, focusLng, sLat, sLng),
+          );
+          studentDualFitDoneRef.current = true;
+        }
+
         setViewState((vs) => ({
           ...vs,
-          latitude: focusLat,
-          longitude: focusLng,
-          zoom: 14,
+          latitude,
+          longitude,
+          zoom,
         }));
       }
       return;
@@ -763,7 +816,35 @@ export function MapComponent({
       latitude: b.position.lat,
       longitude: b.position.lng,
     }));
-  }, [displayBuses, hasMapContent, useDeviceGps, isStudentView]);
+  }, [displayBuses, hasMapContent, useDeviceGps, isStudentView, studentLocation]);
+
+  useEffect(() => {
+    if (
+      !isStudentView ||
+      !hasMapContent ||
+      !studentLocation ||
+      !studentMapCenteredRef.current ||
+      studentDualFitDoneRef.current
+    ) {
+      return;
+    }
+    const b = displayBuses[0];
+    if (!b) return;
+
+    const live = shouldUseLiveBusCoord(b, true);
+    const busLat = live ? b.currentCoord!.lat : b.position.lat;
+    const busLng = live ? b.currentCoord!.lng : b.position.lng;
+    const [sLat, sLng] = studentLocation;
+
+    studentDualFitDoneRef.current = true;
+
+    setViewState((vs) => ({
+      ...vs,
+      latitude: (busLat + sLat) / 2,
+      longitude: (busLng + sLng) / 2,
+      zoom: zoomForDistanceKm(haversineKm(busLat, busLng, sLat, sLng)),
+    }));
+  }, [isStudentView, hasMapContent, studentLocation, displayBuses]);
 
   if (!hasMapContent) {
     return (
@@ -808,12 +889,50 @@ export function MapComponent({
           position.
         </div>
       )}
+      {isStudentView && studentGeoError && !studentLocation && (
+        <div className="absolute left-2 right-2 top-2 z-10 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          Allow location access to see where you are on the map.
+        </div>
+      )}
+      {isStudentView && (
+        <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1.5 rounded-lg border border-white/20 bg-slate-900/85 px-2.5 py-2 text-[10px] text-white shadow-lg backdrop-blur sm:text-xs">
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 shrink-0 rounded-full bg-blue-500 ring-2 ring-blue-300"
+              aria-hidden
+            />
+            You
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-4 shrink-0 rounded-sm bg-emerald-500"
+              aria-hidden
+            />
+            Bus
+          </span>
+        </div>
+      )}
       <Map
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         style={{ width: "100%", height: "100%" }}
         mapStyle={OSM_STYLE}
       >
+        {isStudentView && studentLocation && (
+          <Marker
+            key="student-self"
+            longitude={studentLocation[1]}
+            latitude={studentLocation[0]}
+            anchor="center"
+          >
+            <div
+              role="img"
+              aria-label="Your location"
+              dangerouslySetInnerHTML={{ __html: studentMapMarkerHtml() }}
+            />
+          </Marker>
+        )}
+
         {displayBuses.map((bus) => {
           const [lat, lng] = busMarkerPosition(bus);
           const routeTitle = bus.routeName ?? bus.name;
