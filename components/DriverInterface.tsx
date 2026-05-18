@@ -57,6 +57,9 @@ export function DriverInterface() {
         upsertBus(data.bus);
         setAssignedBus(data.bus);
         setRouteTitle(data.routeName ?? data.bus.name);
+        if (typeof data.bus.gpsActive === "boolean") {
+          setGpsActive(data.bus.gpsActive);
+        }
         setLoadState("ready");
       } catch {
         if (!cancelled) {
@@ -68,7 +71,7 @@ export function DriverInterface() {
     return () => {
       cancelled = true;
     };
-  }, [pushNotification, upsertBus]);
+  }, [pushNotification, upsertBus, setGpsActive]);
 
   useEffect(() => {
     let mounted = true;
@@ -113,6 +116,21 @@ export function DriverInterface() {
 
   const seatMax = Math.max(1, controlledBus?.totalSeats ?? 40);
   const tripOn = Boolean(controlledBus?.isLive);
+
+  const handleGpsToggle = async () => {
+    if (!controlledBus) return;
+    const next = !gpsActive;
+    setGpsActive(next);
+    try {
+      await axios.patch(`/api/buses/${controlledBus.id}`, {
+        gpsActive: next,
+      });
+      updateBusFromFeed(controlledBus.id, { gpsActive: next });
+    } catch {
+      setGpsActive(!next);
+      pushNotification("Could not update GPS status on the server.", "error");
+    }
+  };
 
   const handleStartTrip = async () => {
     if (!controlledBus) return;
@@ -329,7 +347,7 @@ export function DriverInterface() {
               </span>
               <button
                 type="button"
-                onClick={() => setGpsActive(!gpsActive)}
+                onClick={() => void handleGpsToggle()}
                 className={`w-full rounded-xl px-3 py-2 text-xs font-semibold text-white sm:w-auto ${gpsActive ? "bg-amber-600" : "bg-red-600"
                   }`}
               >
