@@ -66,6 +66,8 @@ export function StudentPortal() {
   const [complaint, setComplaint] = useState("");
   const [complaintError, setComplaintError] = useState("");
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [drivers, setDrivers] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>(undefined);
 
   const refreshRoutes = useCallback(async () => {
     try {
@@ -132,6 +134,22 @@ export function StudentPortal() {
     return () => clearInterval(timer);
   }, [refreshRoutes]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await axios.get<{ drivers: Array<{ id: string; name: string }> }>("/api/drivers");
+        if (cancelled) return;
+        setDrivers(data.drivers ?? []);
+      } catch (e) {
+        // ignore driver list fetch errors silently
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const refreshBroadcasts = useCallback(async () => {
     try {
       const { data } = await axios.get<{
@@ -167,9 +185,11 @@ export function StudentPortal() {
     try {
       await axios.post("/api/complaints", {
         message: complaint.trim(),
+        driverId: selectedDriverId ?? null,
       });
       pushNotification("Complaint submitted successfully.", "success");
       setComplaint("");
+      setSelectedDriverId(undefined);
     } catch (error) {
       console.error("Failed to submit complaint:", error);
       pushNotification(
@@ -572,6 +592,24 @@ export function StudentPortal() {
             </svg>
             Submit Complaint
           </h3>
+          {drivers.length > 0 && (
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-amber-200/80">Send To (optional)</label>
+              <select
+                value={selectedDriverId ?? ""}
+                onChange={(e) => setSelectedDriverId(e.target.value || undefined)}
+                className="w-full rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+                disabled={submittingComplaint}
+              >
+                <option value="">All / No specific driver</option>
+                {drivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <textarea
             value={complaint}
             onChange={(e) => setComplaint(e.target.value)}
