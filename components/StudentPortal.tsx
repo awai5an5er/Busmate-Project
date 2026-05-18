@@ -3,7 +3,15 @@
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Clock3, Search, Users, Wifi, WifiOff, X } from "lucide-react";
+import {
+  BellRing,
+  Clock3,
+  Search,
+  Users,
+  Wifi,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
@@ -66,8 +74,12 @@ export function StudentPortal() {
   const [complaint, setComplaint] = useState("");
   const [complaintError, setComplaintError] = useState("");
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
-  const [drivers, setDrivers] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>(undefined);
+  const [drivers, setDrivers] = useState<Array<{ id: string; name: string }>>(
+    [],
+  );
+  const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>(
+    undefined,
+  );
 
   const refreshRoutes = useCallback(async () => {
     try {
@@ -138,7 +150,9 @@ export function StudentPortal() {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await axios.get<{ drivers: Array<{ id: string; name: string }> }>("/api/drivers");
+        const { data } = await axios.get<{
+          drivers: Array<{ id: string; name: string }>;
+        }>("/api/drivers");
         if (cancelled) return;
         setDrivers(data.drivers ?? []);
       } catch (e) {
@@ -462,8 +476,7 @@ export function StudentPortal() {
                 const gpsOn = busGpsActiveByRouteId.get(route.id) ?? false;
                 const busStatus = busStatusByRouteId.get(route.id);
                 // Active = store says "active" OR driver has tripInProgress flag
-                const isActive =
-                  busStatus === "active" || route.tripInProgress;
+                const isActive = busStatus === "active" || route.tripInProgress;
                 return (
                   <div
                     key={route.id}
@@ -594,16 +607,25 @@ export function StudentPortal() {
           </h3>
           {drivers.length > 0 && (
             <div className="mb-3">
-              <label className="mb-1 block text-xs font-medium text-amber-200/80">Send To (optional)</label>
+              <label className="mb-1 block text-xs font-medium text-amber-200/80">
+                Send To (optional)
+              </label>
               <select
                 value={selectedDriverId ?? ""}
                 onChange={(e) => setSelectedDriverId(e.target.value || undefined)}
                 className="w-full rounded-xl border border-amber-400/30 bg-[#232D40] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
                 disabled={submittingComplaint}
               >
-                <option value="">All / No specific driver</option>
+                <option value="" className="bg-[#1e293b] text-white">
+                  Admin
+                </option>
+
                 {drivers.map((d) => (
-                  <option key={d.id} value={d.id}>
+                  <option
+                    key={d.id}
+                    value={d.id}
+                    className="bg-[#1e293b] text-white"
+                  >
                     {d.name}
                   </option>
                 ))}
