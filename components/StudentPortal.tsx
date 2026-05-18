@@ -598,7 +598,7 @@ export function StudentPortal() {
               <select
                 value={selectedDriverId ?? ""}
                 onChange={(e) => setSelectedDriverId(e.target.value || undefined)}
-                className="w-full rounded-xl border border-amber-400/30 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+                className="w-full rounded-xl border border-amber-400/30 bg-[#232D40] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
                 disabled={submittingComplaint}
               >
                 <option value="">All / No specific driver</option>
