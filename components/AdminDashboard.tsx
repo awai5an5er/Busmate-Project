@@ -21,12 +21,17 @@ type DriverOption = {
   email: string;
 };
 
+const ADMIN_POLL_MS = 5_000;
+
 type RouteTableRow = {
   routeId: string;
   name: string;
   /** Display name: assigned User from Bus, else Route.driver string */
   driver: string;
-  active: boolean;
+  /** Route enabled in the system (create-route / isActive). */
+  routeEnabled: boolean;
+  /** Driver GPS broadcasting (synced from bus + Redis freshness). */
+  driverGpsLive: boolean;
   busId: string | null;
   assignedDriverId: string | null;
 };
@@ -81,6 +86,7 @@ export function AdminDashboard() {
             routeId: string | null;
             assignedDriverId: string | null;
             driverName: string | null;
+            driverGpsLive: boolean;
           }>;
         }>("/api/admin/buses"),
         axios.get<{ drivers: DriverOption[] }>("/api/admin/drivers"),
@@ -94,6 +100,7 @@ export function AdminDashboard() {
         busId: string;
         assignedDriverId: string | null;
         driverName: string | null;
+        driverGpsLive: boolean;
       }
     >();
     for (const b of busesData.buses ?? []) {
@@ -104,6 +111,7 @@ export function AdminDashboard() {
             busId: b.id,
             assignedDriverId: b.assignedDriverId,
             driverName: b.driverName,
+            driverGpsLive: Boolean(b.driverGpsLive),
           });
         }
       }
@@ -122,7 +130,8 @@ export function AdminDashboard() {
         routeId: rid,
         name: String(r.name ?? ""),
         driver: driverDisplay,
-        active: Boolean(r.isActive),
+        routeEnabled: Boolean(r.isActive),
+        driverGpsLive: link?.driverGpsLive ?? false,
         busId: link?.busId ?? null,
         assignedDriverId: link?.assignedDriverId ?? null,
       };
@@ -148,12 +157,19 @@ export function AdminDashboard() {
     };
   }, [loadManagementHub, pushNotification, setLoadingAdminTable]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadManagementHub().catch(() => null);
+    }, ADMIN_POLL_MS);
+    return () => clearInterval(timer);
+  }, [loadManagementHub]);
+
   const stats = useMemo(
     () => [
       { label: "Total Routes", value: rows.length },
       {
-        label: "Active Routes",
-        value: rows.filter((item) => item.active).length,
+        label: "GPS Live",
+        value: rows.filter((item) => item.driverGpsLive).length,
       },
       {
         label: "Drivers Assigned",
@@ -387,12 +403,17 @@ export function AdminDashboard() {
                       <td className="hidden sm:table-cell py-2 pr-1 sm:pr-2">
                         <span
                           className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            row.active
-                              ? "bg-amber-500/30 text-amber-200"
-                              : "bg-slate-700/50 text-slate-300"
+                            row.driverGpsLive
+                              ? "bg-emerald-500/25 text-emerald-300"
+                              : "bg-slate-700/50 text-slate-400"
                           }`}
+                          title={
+                            row.driverGpsLive
+                              ? "Driver GPS is on and broadcasting"
+                              : "Driver GPS is off or not broadcasting"
+                          }
                         >
-                          {row.active ? "Active" : "Off"}
+                          {row.driverGpsLive ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="py-2 pr-1">

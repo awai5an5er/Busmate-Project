@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { busFilter } from "@/lib/busFilter";
-import { cacheDriverLocation } from "@/lib/driverLocationRedis";
+import {
+  cacheDriverLocation,
+  deleteCachedDriverLocation,
+} from "@/lib/driverLocationRedis";
 import { Bus as BusModel } from "@/models";
 
 export async function PATCH(
@@ -17,6 +20,7 @@ export async function PATCH(
     const body = (await request.json()) as Record<string, unknown>;
     const $set: Record<string, unknown> = {};
     let wroteCurrentCoord = false;
+    let gpsTurnedOff = false;
 
     // Seat count
     const seatRaw = body.seatCount ?? body.seatsAvailable;
@@ -46,6 +50,9 @@ export async function PATCH(
     // GPS active flag
     if (typeof body.gpsActive === "boolean") {
       $set.gpsActive = body.gpsActive;
+      if (body.gpsActive === false) {
+        gpsTurnedOff = true;
+      }
     }
 
     // Current GPS coordinate (pushed every 5 s from client)
@@ -93,14 +100,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Bus not found." }, { status: 404 });
     }
 
-    if (
+    const redisBusId = updated.shortId
+      ? String(updated.shortId)
+      : String(updated._id);
+
+    if (gpsTurnedOff) {
+      void deleteCachedDriverLocation(redisBusId);
+    } else if (
       wroteCurrentCoord &&
       typeof updated.currentCoord?.lat === "number" &&
       typeof updated.currentCoord?.lng === "number"
     ) {
-      const redisBusId = updated.shortId
-        ? String(updated.shortId)
-        : String(updated._id);
       void cacheDriverLocation(redisBusId, {
         lat: updated.currentCoord.lat,
         lng: updated.currentCoord.lng,

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
+import {
+  getCachedDriverLocations,
+  isDriverLocationCacheFresh,
+} from "@/lib/driverLocationRedis";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { Bus as BusModel } from "@/models";
 
@@ -14,20 +18,42 @@ export async function GET(request: NextRequest) {
       .sort({ updatedAt: -1 })
       .lean();
 
+    const busIds = list.map((b) =>
+      b.shortId ? String(b.shortId) : String(b._id),
+    );
+    const locMap = await getCachedDriverLocations(busIds);
+
     return NextResponse.json({
       buses: list.map((b) => {
-        const pop = b.driverId as { _id?: unknown; name?: string; role?: string } | null;
+        const pop = b.driverId as
+          | { _id?: unknown; name?: string; role?: string }
+          | null;
         const assignedDriverId =
-          pop && typeof pop === "object" && pop._id != null ? String(pop._id) : null;
+          pop && typeof pop === "object" && pop._id != null
+            ? String(pop._id)
+            : null;
         const driverName =
-          pop && typeof pop === "object" && typeof pop.name === "string" ? pop.name : null;
+          pop && typeof pop === "object" && typeof pop.name === "string"
+            ? pop.name
+            : null;
+
+        const id = b.shortId ? String(b.shortId) : String(b._id);
+        const gpsActive = Boolean(b.gpsActive);
+        const cached = locMap.get(id);
+        const redisConfigured = Boolean(process.env.REDIS_URL?.trim());
+        const locationFresh = isDriverLocationCacheFresh(cached);
+        const driverGpsLive =
+          gpsActive && (!redisConfigured || locationFresh);
 
         return {
-          id: b.shortId ? String(b.shortId) : String(b._id),
+          id,
           mongoId: String(b._id),
           routeId: b.routeId ?? null,
           assignedDriverId,
           driverName,
+          gpsActive,
+          isLive: Boolean(b.isLive),
+          driverGpsLive,
         };
       }),
     });

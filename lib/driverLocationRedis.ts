@@ -45,6 +45,25 @@ export async function getCachedDriverLocation(
   }
 }
 
+export async function deleteCachedDriverLocation(busId: string): Promise<void> {
+  const r = getRedis();
+  if (!r) return;
+  try {
+    await r.del(key(busId));
+  } catch (e) {
+    console.error("Redis DEL driver location:", e);
+  }
+}
+
+/** True when a non-expired location key exists (TTL still running). */
+export function isDriverLocationCacheFresh(
+  cached: CachedDriverLocation | null | undefined,
+  maxAgeMs = TTL_SEC * 1000,
+): boolean {
+  if (!cached) return false;
+  return Date.now() - cached.updatedAt < maxAgeMs;
+}
+
 export async function getCachedDriverLocations(
   busIds: string[],
 ): Promise<Map<string, CachedDriverLocation>> {
