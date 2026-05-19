@@ -4,7 +4,9 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   BellRing,
+  BusFront,
   Clock3,
   Search,
   Users,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { EtaAccuracyChart } from "@/components/EtaAccuracyChart";
 import { LiveMap } from "@/components/LiveMap";
 import type { NotificationType } from "@/types/busmate";
 
@@ -49,6 +52,9 @@ function normalizeSeatCount(value: unknown): number {
 export function StudentPortal() {
   const buses = useBusMateStore((state) => state.buses);
   const upsertBus = useBusMateStore((state) => state.upsertBus);
+  const updateSeatAvailability = useBusMateStore(
+    (state) => state.updateSeatAvailability,
+  );
   const notifications = useBusMateStore((state) => state.notifications);
   const dismissNotification = useBusMateStore(
     (state) => state.dismissNotification,
@@ -77,9 +83,16 @@ export function StudentPortal() {
   const [drivers, setDrivers] = useState<Array<{ id: string; name: string }>>(
     [],
   );
-  const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>(
-    undefined,
-  );
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [boardingRouteId, setBoardingRouteId] = useState<string | null>(null);
+  const [myComplaints, setMyComplaints] = useState<
+    Array<{
+      id: string;
+      message: string;
+      recipient: string;
+      createdAt: number;
+    }>
+  >([]);
 
   const refreshRoutes = useCallback(async () => {
     try {
@@ -189,6 +202,28 @@ export function StudentPortal() {
     return () => clearInterval(timer);
   }, [refreshBroadcasts]);
 
+  const loadMyComplaints = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        complaints: Array<{
+          id: string;
+          message: string;
+          recipient: string;
+          createdAt: number;
+        }>;
+      }>("/api/complaints");
+      setMyComplaints(data.complaints ?? []);
+    } catch {
+      /* ignore load errors */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMyComplaints();
+    const timer = setInterval(() => void loadMyComplaints(), 12_000);
+    return () => clearInterval(timer);
+  }, [loadMyComplaints]);
+
   const handleSubmitComplaint = async () => {
     if (complaint.trim().length < 5) {
       setComplaintError("Complaint message must be at least 5 characters.");
@@ -197,13 +232,17 @@ export function StudentPortal() {
     setComplaintError("");
     setSubmittingComplaint(true);
     try {
-      await axios.post("/api/complaints", {
+      const payload: { message: string; driverId?: string } = {
         message: complaint.trim(),
-        driverId: selectedDriverId ?? null,
-      });
+      };
+      if (selectedDriverId) {
+        payload.driverId = selectedDriverId;
+      }
+      await axios.post("/api/complaints", payload);
       pushNotification("Complaint submitted successfully.", "success");
       setComplaint("");
-      setSelectedDriverId(undefined);
+      setSelectedDriverId("");
+      await loadMyComplaints();
     } catch (error) {
       console.error("Failed to submit complaint:", error);
       pushNotification(
@@ -212,6 +251,17 @@ export function StudentPortal() {
       );
     } finally {
       setSubmittingComplaint(false);
+    }
+  };
+
+  const handleClearMyComplaints = async () => {
+    try {
+      await axios.delete("/api/complaints");
+      await loadMyComplaints();
+      pushNotification("All your complaints were cleared.", "success");
+    } catch (err) {
+      console.error("Failed to clear complaints:", err);
+      pushNotification("Failed to clear complaints.", "error");
     }
   };
 
@@ -348,6 +398,43 @@ export function StudentPortal() {
     return normalizeSeatCount(merged ?? 0);
   };
 
+  const handleBoardBus = async (route: ActiveRouteRow) => {
+    if (boardingRouteId) return;
+    const seats = seatLabelForRoute(route);
+    if (seats <= 0) {
+      pushNotification("This bus is full.", "warning");
+      return;
+    }
+    setBoardingRouteId(route.id);
+    try {
+      const { data } = await axios.post<{
+        seatsAvailable: number;
+        busId: string;
+        bus?: Parameters<typeof upsertBus>[0];
+      }>("/api/student/board", { routeId: route.id });
+      if (data.bus) {
+        upsertBus(data.bus);
+      } else if (data.busId) {
+        updateSeatAvailability(data.busId, data.seatsAvailable);
+      }
+      setRoutes((prev) =>
+        prev.map((r) =>
+          r.id === route.id
+            ? { ...r, seatsAvailable: data.seatsAvailable }
+            : r,
+        ),
+      );
+      pushNotification(
+        `Boarding recorded for ${route.name}. ${data.seatsAvailable} seat(s) still available.`,
+        "success",
+      );
+    } catch {
+      pushNotification("Could not record boarding. Try again.", "error");
+    } finally {
+      setBoardingRouteId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {user && (
@@ -417,6 +504,7 @@ export function StudentPortal() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-4">
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
           <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
             <Clock3 className="h-4 w-4 shrink-0 text-amber-400" />
@@ -526,13 +614,33 @@ export function StudentPortal() {
                       </div>
                       <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
                         <Users className="h-3.5 w-3.5 shrink-0" />
-                        {String(seats)} seats
+                        {String(seats)} seats left
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleBoardBus(route)}
+                      disabled={
+                        boardingRouteId === route.id ||
+                        seats <= 0 ||
+                        Boolean(boardingRouteId)
+                      }
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-600/90 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                    >
+                      <BusFront className="h-4 w-4 shrink-0" />
+                      {boardingRouteId === route.id
+                        ? "Boarding…"
+                        : seats <= 0
+                          ? "Bus Full"
+                          : "I'm Boarding This Bus"}
+                    </button>
                   </div>
                 );
               })}
           </div>
+        </div>
+
+        <EtaAccuracyChart />
         </div>
 
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
@@ -590,48 +698,33 @@ export function StudentPortal() {
 
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-white">
-            <svg
-              className="h-4 w-4 text-amber-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
+            <AlertTriangle className="h-4 w-4 text-amber-400" />
             Submit Complaint
           </h3>
-          {drivers.length > 0 && (
-            <div className="mb-3">
-              <label className="mb-1 block text-xs font-medium text-amber-200/80">
-                Send To (optional)
-              </label>
-              <select
-                value={selectedDriverId ?? ""}
-                onChange={(e) => setSelectedDriverId(e.target.value || undefined)}
-                className="w-full rounded-xl border border-amber-400/30 bg-[#232D40] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-                disabled={submittingComplaint}
-              >
-                <option value="" className="bg-[#1e293b] text-white">
-                  Admin
+          <div className="mb-3">
+            <label className="mb-1 block text-xs font-medium text-amber-200/80">
+              Send To
+            </label>
+            <select
+              value={selectedDriverId}
+              onChange={(e) => setSelectedDriverId(e.target.value)}
+              className="w-full rounded-xl border border-amber-400/30 bg-[#232D40] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+              disabled={submittingComplaint}
+            >
+              <option value="" className="bg-[#1e293b] text-white">
+                Admin
+              </option>
+              {drivers.map((d) => (
+                <option
+                  key={d.id}
+                  value={d.id}
+                  className="bg-[#1e293b] text-white"
+                >
+                  {d.name}
                 </option>
-
-                {drivers.map((d) => (
-                  <option
-                    key={d.id}
-                    value={d.id}
-                    className="bg-[#1e293b] text-white"
-                  >
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              ))}
+            </select>
+          </div>
           <textarea
             value={complaint}
             onChange={(e) => setComplaint(e.target.value)}
@@ -650,22 +743,48 @@ export function StudentPortal() {
           </button>
           {complaintError && (
             <div className="mt-3 inline-flex w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              <svg
-                className="h-4 w-4 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                />
-              </svg>
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               {complaintError}
             </div>
           )}
+        </div>
+
+        <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-white">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              My Complaints ({myComplaints.length})
+            </h3>
+            {myComplaints.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleClearMyComplaints()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Clear All
+              </button>
+            )}
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {myComplaints.length === 0 && (
+              <p className="rounded-xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
+                No complaints submitted yet.
+              </p>
+            )}
+            {myComplaints.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-amber-400/20 bg-white/5 p-3"
+              >
+                <p className="text-sm text-white mb-2">{item.message}</p>
+                <div className="flex items-center justify-between text-xs text-amber-200/70">
+                  <span>To: {item.recipient}</span>
+                  <span>{new Date(item.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

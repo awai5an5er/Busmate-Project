@@ -25,6 +25,10 @@ export interface IBus extends Document {
   shortId?: string;
   driverId?: mongoose.Types.ObjectId;
   routeId?: string;
+  /** Set when the driver starts a trip (isLive → true) */
+  tripStartedAt?: Date;
+  /** seatsAvailable snapshot at trip start (for passenger count on end) */
+  seatsAvailableAtTripStart?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +110,13 @@ const BusSchema: Schema = new Schema(
     routeId: {
       type: String,
       trim: true,
+    },
+    tripStartedAt: {
+      type: Date,
+    },
+    seatsAvailableAtTripStart: {
+      type: Number,
+      min: 0,
     },
   },
   {

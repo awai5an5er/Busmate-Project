@@ -41,7 +41,10 @@ export async function PUT(request: NextRequest) {
       busFilter(busId),
       driverId
         ? { $set: { driverId: new mongoose.Types.ObjectId(driverId) } }
-        : { $unset: { driverId: 1 } },
+        : {
+            $unset: { driverId: 1 },
+            $set: { status: "idle", isLive: false },
+          },
       { new: true, runValidators: true },
     ).lean();
 

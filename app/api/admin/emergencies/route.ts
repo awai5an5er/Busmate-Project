@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdmin } from "@/lib/requireAdmin";
-import { Complaint as ComplaintModel } from "@/models";
+import { Emergency as EmergencyModel } from "@/models";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -9,30 +9,26 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect();
-    const rows = await ComplaintModel.find({
-      $or: [
-        { driverId: null },
-        { driverId: { $exists: false } },
-        { driverId: "" },
-      ],
-    })
+    const rows = await EmergencyModel.find({})
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
 
     return NextResponse.json({
-      complaints: rows.map((r) => ({
+      emergencies: rows.map((r) => ({
         id: String(r._id),
-        message: r.message,
-        studentId: r.studentId,
-        studentName: r.studentName,
+        driverId: r.driverId,
+        driverName: r.driverName,
+        busId: r.busId,
+        busName: r.busName,
+        coordinates: r.coordinates,
         createdAt: new Date(r.createdAt).getTime(),
       })),
     });
   } catch (e) {
-    console.error("GET /api/admin/complaints:", e);
+    console.error("GET /api/admin/emergencies:", e);
     return NextResponse.json(
-      { error: "Unable to load complaints." },
+      { error: "Unable to load emergencies." },
       { status: 500 },
     );
   }
@@ -44,21 +40,15 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await dbConnect();
-    await ComplaintModel.deleteMany({
-      $or: [
-        { driverId: null },
-        { driverId: { $exists: false } },
-        { driverId: "" },
-      ],
-    });
+    await EmergencyModel.deleteMany({});
     return NextResponse.json({
       success: true,
-      message: "All complaints cleared.",
+      message: "All emergency alerts cleared.",
     });
   } catch (e) {
-    console.error("DELETE /api/admin/complaints:", e);
+    console.error("DELETE /api/admin/emergencies:", e);
     return NextResponse.json(
-      { error: "Unable to clear complaints." },
+      { error: "Unable to clear emergencies." },
       { status: 500 },
     );
   }

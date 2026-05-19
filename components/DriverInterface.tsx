@@ -1,9 +1,17 @@
 "use client";
 
 import axios from "axios";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BusFront, LocateFixed, Play, Square, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  BusFront,
+  LocateFixed,
+  Play,
+  Siren,
+  Square,
+  Users,
+} from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
@@ -39,6 +47,7 @@ export function DriverInterface() {
   const [routeTitle, setRouteTitle] = useState<string | null>(null);
   const [assignedBus, setAssignedBus] = useState<Bus | null>(null);
   const [complaints, setComplaints] = useState<Array<{ id: string; message: string; studentName?: string; createdAt: number }>>([]);
+  const [sendingSos, setSendingSos] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,25 +83,56 @@ export function DriverInterface() {
   }, [pushNotification, upsertBus, setGpsActive]);
 
   useEffect(() => {
-    let mounted = true;
-    const fetchComplaints = async () => {
+    if (loadState !== "ready" || !assignedBus?.id) return;
+
+    const refreshAssignment = async () => {
       try {
-        const { data } = await axios.get<{ complaints: Array<{ id: string; message: string; studentName?: string; createdAt: number }> }>(
-          "/api/driver/complaints",
+        const { data } = await axios.get<AssignmentApi>(
+          "/api/driver/assignment",
         );
-        if (!mounted) return;
-        setComplaints(data.complaints ?? []);
-      } catch (e) {
-        // ignore
+        if (!data.bus) return;
+        upsertBus(data.bus);
+        setAssignedBus(data.bus);
+      } catch {
+        /* ignore refresh errors */
       }
     };
-    void fetchComplaints();
-    const timer = setInterval(() => void fetchComplaints(), 12_000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
+
+    const timer = setInterval(() => void refreshAssignment(), 5_000);
+    return () => clearInterval(timer);
+  }, [loadState, assignedBus?.id, upsertBus]);
+
+  const loadComplaints = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        complaints: Array<{
+          id: string;
+          message: string;
+          studentName?: string;
+          createdAt: number;
+        }>;
+      }>("/api/driver/complaints");
+      setComplaints(data.complaints ?? []);
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  useEffect(() => {
+    void loadComplaints();
+    const timer = setInterval(() => void loadComplaints(), 12_000);
+    return () => clearInterval(timer);
+  }, [loadComplaints]);
+
+  const handleClearComplaints = async () => {
+    try {
+      await axios.delete("/api/driver/complaints");
+      await loadComplaints();
+      pushNotification("All complaints cleared.", "success");
+    } catch {
+      pushNotification("Failed to clear complaints.", "error");
+    }
+  };
 
   const controlledBus =
     (assignedBus ? buses.find((b) => b.id === assignedBus.id) : null) ??
@@ -162,6 +202,68 @@ export function DriverInterface() {
       endTrip();
     } catch {
       pushNotification("Could not end trip on the server.", "error");
+    }
+  };
+
+  const resolveEmergencyCoords = async (
+    bus: Bus,
+  ): Promise<{ lat: number; lng: number }> => {
+    if (
+      typeof bus.currentCoord?.lat === "number" &&
+      typeof bus.currentCoord?.lng === "number"
+    ) {
+      return { lat: bus.currentCoord.lat, lng: bus.currentCoord.lng };
+    }
+    if (
+      typeof bus.position?.lat === "number" &&
+      typeof bus.position?.lng === "number"
+    ) {
+      return { lat: bus.position.lat, lng: bus.position.lng };
+    }
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation unavailable"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
+        () => reject(new Error("Could not read device GPS")),
+        { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
+      );
+    });
+  };
+
+  const handleSosEmergency = async () => {
+    if (!controlledBus || sendingSos) return;
+    const confirmed = window.confirm(
+      "Send SOS emergency alert to Admin with your current location?",
+    );
+    if (!confirmed) return;
+
+    setSendingSos(true);
+    try {
+      const coords = await resolveEmergencyCoords(controlledBus);
+      await axios.post("/api/driver/emergency", {
+        lat: coords.lat,
+        lng: coords.lng,
+        busId: controlledBus.id,
+        busName: controlledBus.name,
+      });
+      pushNotification(
+        "SOS emergency alert sent to Admin.",
+        "error",
+      );
+    } catch {
+      pushNotification(
+        "Could not send SOS alert. Enable GPS and try again.",
+        "error",
+      );
+    } finally {
+      setSendingSos(false);
     }
   };
 
@@ -267,6 +369,15 @@ export function DriverInterface() {
               End Trip
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleSosEmergency()}
+            disabled={sendingSos}
+            className="mt-3 flex w-full min-h-[3.5rem] items-center justify-center gap-2 rounded-2xl border-2 border-red-400 bg-red-600 px-4 py-3 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-red-900/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Siren className="h-5 w-5 shrink-0 animate-pulse" />
+            {sendingSos ? "Sending SOS…" : "SOS Emergency"}
+          </button>
           <div className="mt-5 rounded-2xl bg-white/5 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-amber-200/70">
               Occupancy
@@ -279,22 +390,6 @@ export function DriverInterface() {
                 <Users className="h-4 w-4 shrink-0" />
                 {String(controlledBus.seatsAvailable ?? 0)} / {String(seatMax)}
               </span>
-            </div>
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-white/5 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-200/70">
-                Student Complaints
-              </p>
-              <div className="mt-3 space-y-2 max-h-48 overflow-auto">
-                {complaints.length === 0 && (
-                  <p className="text-xs text-amber-200/70">No complaints.</p>
-                )}
-                {complaints.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-amber-400/10 bg-white/3 px-3 py-2">
-                    <p className="text-sm font-medium text-white">{c.message}</p>
-                    <p className="mt-1 text-xs text-amber-200/70">From: {c.studentName ?? "Student"}</p>
-                  </div>
-                ))}
-              </div>
             </div>
             <input
               type="range"
@@ -353,6 +448,44 @@ export function DriverInterface() {
               >
                 {gpsActive ? "Active" : "Inactive"}
               </button>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Student Complaints ({complaints.length})
+              </h3>
+              {complaints.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void handleClearComplaints()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Clear All
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {complaints.length === 0 && (
+                <p className="rounded-xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
+                  No complaints submitted yet.
+                </p>
+              )}
+              {complaints.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-xl border border-amber-400/20 bg-white/5 p-3"
+                >
+                  <p className="text-sm text-white mb-2">{c.message}</p>
+                  <div className="flex items-center justify-between text-xs text-amber-200/70">
+                    <span>By: {c.studentName ?? "Student"}</span>
+                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </aside>
