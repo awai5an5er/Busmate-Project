@@ -55,7 +55,7 @@ export async function deleteCachedDriverLocation(busId: string): Promise<void> {
   }
 }
 
-/** True when a non-expired location key exists (TTL still running). */
+
 export function isDriverLocationCacheFresh(
   cached: CachedDriverLocation | null | undefined,
   maxAgeMs = TTL_SEC * 1000,
@@ -86,7 +86,7 @@ export async function getCachedDriverLocations(
           out.set(busIds[i], parsed);
         }
       } catch {
-        /* skip malformed */
+        
       }
     }
   } catch (e) {

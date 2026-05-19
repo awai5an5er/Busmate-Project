@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { Bus as BusModel } from "@/models";
 
-/**
- * GET /api/buses
- * Returns all bus documents so the frontend can hydrate initial state on mount.
- */
+
+
 export async function GET() {
   try {
     await dbConnect();

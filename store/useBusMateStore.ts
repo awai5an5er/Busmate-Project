@@ -18,14 +18,12 @@ type BusMateState = {
   startTrip: () => void;
   endTrip: () => void;
   setGpsActive: (value: boolean) => void;
-  /** Insert or replace a bus by `id` (used when hydrating driver assignment from the API). */
+  
   upsertBus: (bus: Bus) => void;
   updateSeatAvailability: (busId: string, seats: number) => void;
   updateBusFromFeed: (busId: string, payload: Partial<Bus>) => void;
-  /**
-   * Update a bus's trip lifecycle state fields.
-   * Used by the animation engine when trip starts, traffic delay occurs, or bus arrives.
-   */
+
+
   updateBusTripState: (
     busId: string,
     patch: {
@@ -38,7 +36,7 @@ type BusMateState = {
     },
   ) => void;
   pushNotification: (message: string, type?: NotificationType) => void;
-  /** Merge server-persisted broadcasts without duplicating ids (student portal polling). */
+  
   mergeBroadcastNotifications: (
     items: Array<{
       id: string;
@@ -144,10 +142,10 @@ export const useBusMateStore = create<BusMateState>((set, get) => ({
     const key = `${busId}:${waypointName}`;
     const reached = get().reachedWaypoints;
     if (reached.has(key)) {
-      return false; // Already notified
+      return false; 
     }
     reached.add(key);
     set({ reachedWaypoints: new Set(reached) });
-    return true; // First time reaching this waypoint
+    return true; 
   },
 }));

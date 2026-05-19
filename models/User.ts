@@ -6,9 +6,9 @@ export interface IUser extends Document {
   password: string;
   name: string;
   role: "student" | "driver" | "admin";
-  studentId?: string; // for students
-  driverId?: string; // for drivers
-  /** Active boarding for the current trip (students only) */
+  studentId?: string; 
+  driverId?: string; 
+  
   boardedRouteId?: string;
   boardedBusName?: string;
   boardedBusId?: mongoose.Types.ObjectId;
@@ -44,7 +44,7 @@ const UserSchema: Schema = new Schema(
     },
     studentId: {
       type: String,
-      sparse: true, // allows null values but enforces uniqueness when present
+      sparse: true, 
     },
     driverId: {
       type: String,
@@ -72,16 +72,16 @@ const UserSchema: Schema = new Schema(
   },
 );
 
-// Passwords are hashed in API routes (register / future reset). Avoids pre('save') + `next` issues in Next.js + Mongoose.
 
-// Compare password method
+
+
 UserSchema.methods.comparePassword = async function (
   candidatePassword: string,
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remove password from JSON output
+
 UserSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.password;

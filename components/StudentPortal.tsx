@@ -27,7 +27,7 @@ const toastTone = {
   error: "border-red-200 bg-red-50 text-slate-900",
 };
 
-/** Matches driver GPS PATCH cadence so the student map stays aligned with live trips. */
+
 const ROUTE_POLL_MS = 5_000;
 const BROADCAST_POLL_MS = 12_000;
 
@@ -36,7 +36,7 @@ type ActiveRouteRow = {
   name: string;
   driver: string;
   isActive: boolean;
-  /** True when the assigned bus has an active trip (driver pressed Start Trip) */
+  
   tripInProgress: boolean;
   seatsAvailable: number;
   eta?: number;
@@ -111,14 +111,14 @@ export function StudentPortal() {
       setRoutes(mapped);
       setRoutesError(null);
 
-      // Check for trip starts and show notifications
+      
       const currentTripsActive = new Set<string>();
       (data.rows ?? []).forEach((r) => {
         const routeId = String(r._id);
         if (Boolean(r.tripInProgress)) {
           currentTripsActive.add(routeId);
 
-          // If this trip wasn't active before, show notification
+          
           if (!previousTripsState.has(routeId)) {
             const routeName = String(r.name ?? "Route");
             const tripKey = `${routeId}-started`;
@@ -134,8 +134,8 @@ export function StudentPortal() {
       });
       setPreviousTripsState(currentTripsActive);
 
-      // Also upsert buses from the API response to ensure they're in the store
-      // And attach route stops to buses
+      
+      
       (data.rows ?? []).forEach((r) => {
         if (r.bus && typeof r.bus === "object") {
           const busWithStops = {
@@ -169,7 +169,7 @@ export function StudentPortal() {
         if (cancelled) return;
         setDrivers(data.drivers ?? []);
       } catch {
-        // ignore driver list fetch errors silently
+        
       }
     })();
     return () => {
@@ -189,7 +189,7 @@ export function StudentPortal() {
       }>("/api/broadcasts");
       mergeBroadcastNotifications(data.items ?? []);
     } catch {
-      /* ignore broadcast fetch errors */
+      
     }
   }, [mergeBroadcastNotifications]);
 
@@ -214,7 +214,7 @@ export function StudentPortal() {
       }>("/api/complaints");
       setMyComplaints(data.complaints ?? []);
     } catch {
-      /* ignore load errors */
+      
     }
   }, []);
 
@@ -315,10 +315,8 @@ export function StudentPortal() {
     return map;
   }, [buses, routes]);
 
-  /**
-   * Live ETA map: routeId → animated eta from the Zustand store.
-   * Falls back to the server-polled eta from the routes array.
-   */
+
+
   const busEtaByRouteId = useMemo(() => {
     const map = new Map<string, number>();
     for (const b of buses) {
@@ -326,7 +324,7 @@ export function StudentPortal() {
         map.set(b.routeId, b.eta);
       }
     }
-    // Also match by route name in case routeId isn't set
+    
     for (const r of routes) {
       if (map.has(r.id)) continue;
       const label = r.name.trim().toLowerCase();
@@ -340,9 +338,8 @@ export function StudentPortal() {
     return map;
   }, [buses, routes]);
 
-  /**
-   * GPS active map: routeId → gpsActive flag from the Zustand store.
-   */
+
+
   const busGpsActiveByRouteId = useMemo(() => {
     const map = new Map<string, boolean>();
     for (const b of buses) {
@@ -363,9 +360,8 @@ export function StudentPortal() {
     return map;
   }, [buses, routes]);
 
-  /**
-   * Bus status map: routeId → status ("active" | "idle") from the Zustand store.
-   */
+
+
   const busStatusByRouteId = useMemo(() => {
     const map = new Map<string, "active" | "idle">();
     for (const b of buses) {
@@ -568,11 +564,11 @@ export function StudentPortal() {
               !routesError &&
               filteredRoutes.map((route) => {
                 const seats = seatLabelForRoute(route);
-                // Prefer live animated ETA from store; fall back to server-polled value
+                
                 const liveEta = busEtaByRouteId.get(route.id) ?? route.eta;
                 const gpsOn = busGpsActiveByRouteId.get(route.id) ?? false;
                 const busStatus = busStatusByRouteId.get(route.id);
-                // Active = store says "active" OR driver has tripInProgress flag
+                
                 const isActive = busStatus === "active" || route.tripInProgress;
                 return (
                   <div
@@ -588,7 +584,7 @@ export function StudentPortal() {
                           Driver: {route.driver}
                         </p>
                       </div>
-                      {/* GPS signal indicator */}
+                      {}
                       <span
                         title={gpsOn ? "GPS active" : "GPS inactive"}
                         className={`mt-0.5 shrink-0 rounded-full p-1 ${

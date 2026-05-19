@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const { email, password, name, role, studentId, driverId } =
       await request.json();
 
-    // Validate required fields
+    
     if (!email || !password || !name || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -19,12 +19,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role
+    
     if (!["student", "driver"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    // Check if user already exists
+    
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role-specific fields
+    
     if (role === "student" && !studentId) {
       return NextResponse.json(
         { error: "Student ID is required for students" },
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user (hash here — Mongoose save middleware is unreliable in this runtime)
+    
     const user = new User({
       email: email.toLowerCase(),
       password: hashedPassword,
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const token = generateToken(user._id.toString(), user.email, user.role);
 
-    // Return user without password and set auth cookie
+    
     const userResponse = {
       id: user._id,
       email: user.email,

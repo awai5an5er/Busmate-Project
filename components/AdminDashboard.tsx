@@ -33,9 +33,9 @@ const ADMIN_POLL_MS = 5_000;
 type RouteTableRow = {
   routeId: string;
   name: string;
-  /** Display name: assigned User from Bus, else Route.driver string */
+  
   driver: string;
-  /** Route enabled in the system (create-route / isActive). */
+  
   routeEnabled: boolean;
   busId: string | null;
   assignedDriverId: string | null;
@@ -109,7 +109,7 @@ export function AdminDashboard() {
       }>("/api/admin/trip-logs");
       setTripLogs(data.trips ?? []);
     } catch {
-      /* ignore trip log fetch errors */
+      
     }
   }, []);
 
@@ -344,7 +344,7 @@ export function AdminDashboard() {
       }>("/api/admin/complaints");
       setComplaints(data.complaints ?? []);
     } catch {
-      /* ignore complaints fetch errors */
+      
     }
   }, []);
 
@@ -377,7 +377,7 @@ export function AdminDashboard() {
         );
       }
     } catch {
-      /* ignore emergency fetch errors */
+      
     }
   }, [pushNotification]);
 

@@ -1,4 +1,4 @@
-/** Inline bus marker for react-map-gl (MapLibre) HTML markers. */
+
 export function busMapMarkerHtml(isTripActive: boolean): string {
   const accent = isTripActive ? "#10b981" : "#64748b";
   return `

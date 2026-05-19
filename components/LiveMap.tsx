@@ -26,7 +26,7 @@ export function LiveMap({
 }: {
   buses: Bus[];
   tripControl?: TripControl;
-  /** Driver portal: use browser geolocation instead of simulated movement. */
+  
   useDeviceGps?: boolean;
 }) {
   return (

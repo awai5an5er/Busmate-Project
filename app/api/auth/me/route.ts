@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return user info
+    
     return NextResponse.json({
       user: {
         id: user._id,

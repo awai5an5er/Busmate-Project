@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { Bus as BusModel, User } from "@/models";
 
-/** Clear active boarding on all students who boarded this bus (trip end / new trip). */
+
 export async function clearStudentBoardingForBus(
   busMongoId: mongoose.Types.ObjectId | string,
 ) {
@@ -22,7 +22,7 @@ export async function clearStudentBoardingForBus(
   );
 }
 
-/** Remove orphan bus list entries when the user has no active boarding record. */
+
 export async function pullStaleBusBookings(
   studentId: mongoose.Types.ObjectId,
 ) {

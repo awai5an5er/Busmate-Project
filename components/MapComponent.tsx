@@ -121,13 +121,13 @@ export type TripControl = "driver" | "student";
 type MapComponentProps = {
   buses: Bus[];
   tripControl?: TripControl;
-  /** When true (driver portal), use device GPS instead of simulated movement. */
+  
   useDeviceGps?: boolean;
 };
 
 const fallbackCenter = { latitude: 31.5204, longitude: 74.3587, zoom: 13 };
 
-/** Student map: show server / Redis GPS as-is instead of interpolating on start→end chord. */
+
 function zoomForDistanceKm(km: number): number {
   if (km < 0.5) return 15;
   if (km < 2) return 14;
@@ -220,7 +220,7 @@ export function MapComponent({
   const simulatingRef = useRef<Set<string>>(new Set());
   const seededRouteCoordsRef = useRef<Set<string>>(new Set());
   const didCenterOnGpsRef = useRef(false);
-  /** Avoid resetting the map camera on every parent poll / re-render (fixes student map jitter). */
+  
   const studentMapCenteredRef = useRef(false);
   const lastStudentCenterKeyRef = useRef<string | null>(null);
   const studentDualFitDoneRef = useRef(false);

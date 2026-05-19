@@ -9,7 +9,7 @@ import { recordTripLogOnEnd } from "@/lib/recordTripLogOnEnd";
 import { clearStudentBoardingForBus } from "@/lib/studentBoarding";
 import { Bus as BusModel } from "@/models";
 
-/** Seats reset to this count when the driver starts a new trip. */
+
 const SEATS_ON_TRIP_START = 50;
 
 export async function PATCH(
@@ -28,7 +28,7 @@ export async function PATCH(
     let wroteCurrentCoord = false;
     let gpsTurnedOff = false;
 
-    // Seat count
+    
     const seatRaw = body.seatCount ?? body.seatsAvailable;
     if (typeof seatRaw === "number" && !Number.isNaN(seatRaw) && seatRaw >= 0) {
       $set.seatsAvailable = Math.floor(seatRaw);
@@ -45,7 +45,7 @@ export async function PATCH(
     const startingTrip =
       body.isLive === true && !existing.isLive;
 
-    // Live flag + trip lifecycle fields
+    
     if (typeof body.isLive === "boolean") {
       $set.isLive = body.isLive;
       if (startingTrip) {
@@ -63,7 +63,7 @@ export async function PATCH(
       }
     }
 
-    // ETA in minutes
+    
     if (
       typeof body.eta === "number" &&
       !Number.isNaN(body.eta) &&
@@ -72,12 +72,12 @@ export async function PATCH(
       $set.eta = Math.round(body.eta);
     }
 
-    // Trip status
+    
     if (body.status === "active" || body.status === "idle") {
       $set.status = body.status;
     }
 
-    // GPS active flag
+    
     if (typeof body.gpsActive === "boolean") {
       $set.gpsActive = body.gpsActive;
       if (body.gpsActive === false) {
@@ -85,7 +85,7 @@ export async function PATCH(
       }
     }
 
-    // Current GPS coordinate (pushed every 5 s from client)
+    
     if (body.currentCoord) {
       const coord = body.currentCoord as Record<string, unknown>;
       if (typeof coord.lat === "number" && typeof coord.lng === "number") {
@@ -95,7 +95,7 @@ export async function PATCH(
       }
     }
 
-    // Start / end coords (set once when trip begins)
+    
     if (body.startCoord) {
       const coord = body.startCoord as Record<string, unknown>;
       if (typeof coord.lat === "number" && typeof coord.lng === "number") {

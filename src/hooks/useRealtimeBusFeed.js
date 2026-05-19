@@ -39,7 +39,7 @@ export const useRealtimeBusFeed = () => {
 
   useEffect(() => {
     if (!env.websocketUrl) {
-      // Fallback local simulation when no backend socket is configured.
+      
       const interval = setInterval(() => {
         buses.forEach((bus) => {
           const nextX = clamp(bus.position.x + (Math.random() * 8 - 4), 5, 95);

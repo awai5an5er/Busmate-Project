@@ -6,7 +6,7 @@ export interface IBusNotification extends Document {
   message: string;
   type: NotificationType;
   busId?: mongoose.Types.ObjectId;
-  userId?: mongoose.Types.ObjectId; // for targeted notifications
+  userId?: mongoose.Types.ObjectId; 
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -42,7 +42,7 @@ const BusNotificationSchema: Schema = new Schema(
   },
 );
 
-// Index for efficient queries
+
 BusNotificationSchema.index({ createdAt: -1 });
 BusNotificationSchema.index({ userId: 1, isRead: 1 });
 

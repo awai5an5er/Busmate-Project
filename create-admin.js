@@ -3,7 +3,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-// Load .env file manually
+
 const envPath = path.join(__dirname, ".env");
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf-8");
@@ -71,18 +71,18 @@ async function createAdmin() {
     await mongoose.connect(MONGODB_URI);
     console.log("✓ Connected to MongoDB");
 
-    // Check if admin already exists
+    
     const existingAdmin = await User.findOne({ email: "admin@gmail.com" });
     if (existingAdmin) {
       console.log("✗ Admin user already exists");
       process.exit(0);
     }
 
-    // Hash password
+    
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash("admin123", salt);
 
-    // Create admin user
+    
     const admin = new User({
       email: "admin@gmail.com",
       password: hashedPassword,

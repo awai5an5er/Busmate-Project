@@ -1,4 +1,4 @@
-/** Tab-scoped JWT so each browser tab/window can hold a different role session. */
+
 export const CLIENT_AUTH_TOKEN_KEY = "busmate_token";
 
 export function getClientAuthToken(): string | null {

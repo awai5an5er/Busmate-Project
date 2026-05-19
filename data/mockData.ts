@@ -43,7 +43,7 @@ export const chartSeed = [
   { name: "Sat", trips: 58, occupancy: 42 },
 ];
 
-/** Sample past trips for student ETA accuracy visualization (minutes). */
+
 export const etaAccuracySeed = [
   { trip: "Mon AM", route: "Walton", predicted: 14, actual: 16 },
   { trip: "Mon PM", route: "DHA", predicted: 11, actual: 10 },

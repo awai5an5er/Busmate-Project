@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = await request.json();
 
-    // Validate required fields
+    
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
+    
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is active
+    
     if (!user.isActive) {
       return NextResponse.json(
         { error: "Account is deactivated" },
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check password
+    
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
+    
     const token = generateToken(user._id.toString(), user.email, user.role);
 
-    // Set HTTP-only cookie
+    
     return NextResponse.json(
       {
         message: "Login successful",

@@ -26,7 +26,7 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   }
 }
 
-/** Prefer `Authorization: Bearer` (per-tab); fall back to cookie for older sessions. */
+
 export function getTokenFromRequest(request: NextRequest): string | undefined {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) {

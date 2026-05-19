@@ -2,10 +2,8 @@ import Redis from "ioredis";
 
 type RedisGlobal = typeof globalThis & { __busmateRedis?: Redis };
 
-/**
- * Shared Redis connection for API routes. Returns null when REDIS_URL is unset
- * so local dev without Redis still works (Mongo remains source of truth).
- */
+
+
 export function getRedis(): Redis | null {
   const url = process.env.REDIS_URL?.trim();
   if (!url) return null;

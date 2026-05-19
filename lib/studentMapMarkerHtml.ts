@@ -1,4 +1,4 @@
-/** Blue location marker for the student on the live map. */
+
 export function studentMapMarkerHtml(): string {
   return `
 <div style="width:36px;height:36px;transform:translate(-50%,-50%);filter:drop-shadow(0 2px 6px rgba(37,99,235,.45));">

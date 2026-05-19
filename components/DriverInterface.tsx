@@ -95,7 +95,7 @@ export function DriverInterface() {
         upsertBus(data.bus);
         setAssignedBus(data.bus);
       } catch {
-        /* ignore refresh errors */
+        
       }
     };
 
@@ -115,7 +115,7 @@ export function DriverInterface() {
       }>("/api/driver/complaints");
       setComplaints(data.complaints ?? []);
     } catch {
-      /* ignore */
+      
     }
   }, []);
 
@@ -187,7 +187,7 @@ export function DriverInterface() {
       updateBusFromFeed(controlledBus.id, { isLive: true, seatsAvailable: seats });
       startTrip();
 
-      // Show notification with route name
+      
       const routeName = routeTitle || controlledBus.name;
       const tripId = `${controlledBus.id}-${Date.now()}`;
       if (!notifiedTripsRef.current.has(tripId)) {

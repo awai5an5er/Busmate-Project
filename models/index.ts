@@ -8,7 +8,7 @@ export { default as Emergency } from "./Emergency";
 export { default as TripLog } from "./TripLog";
 export { default as ChatMessage } from "./ChatMessage";
 
-// Export types
+
 export type { IUser } from "./User";
 export type { IBus } from "./Bus";
 export type { IBusNotification } from "./BusNotification";

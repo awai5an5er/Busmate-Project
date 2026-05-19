@@ -48,7 +48,7 @@ async function dbConnect() {
     console.log("[MongoDB] Connected", {
       database: connection.name,
       host: connection.host,
-      readyState: connection.readyState, // 1 = connected
+      readyState: connection.readyState, 
     });
   } catch (e) {
     cached.promise = null;

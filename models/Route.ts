@@ -62,7 +62,7 @@ const RouteSchema: Schema = new Schema(
   },
 );
 
-// Index for efficient queries
+
 RouteSchema.index({ isActive: 1 });
 
 export default mongoose.models.Route ||

@@ -4,10 +4,8 @@ import { ensureBusDocumentForRoute } from "@/lib/ensureBusForRoute";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { Route as RouteModel } from "@/models";
 
-/**
- * Creates a default Bus for every Route that does not have one yet.
- * Safe to call repeatedly (idempotent).
- */
+
+
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (auth.response) return auth.response;
