@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { EtaAccuracyChart } from "@/components/EtaAccuracyChart";
 import { LiveMap } from "@/components/LiveMap";
 import type { NotificationType } from "@/types/busmate";
 
@@ -503,6 +504,7 @@ export function StudentPortal() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-4">
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">
           <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
             <Clock3 className="h-4 w-4 shrink-0 text-amber-400" />
@@ -636,6 +638,9 @@ export function StudentPortal() {
                 );
               })}
           </div>
+        </div>
+
+        <EtaAccuracyChart />
         </div>
 
         <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur md:p-5">

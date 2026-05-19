@@ -43,6 +43,18 @@ export const chartSeed = [
   { name: "Sat", trips: 58, occupancy: 42 },
 ];
 
+/** Sample past trips for student ETA accuracy visualization (minutes). */
+export const etaAccuracySeed = [
+  { trip: "Mon AM", route: "Walton", predicted: 14, actual: 16 },
+  { trip: "Mon PM", route: "DHA", predicted: 11, actual: 10 },
+  { trip: "Tue AM", route: "Gulberg", predicted: 9, actual: 12 },
+  { trip: "Tue PM", route: "Model Town", predicted: 18, actual: 17 },
+  { trip: "Wed AM", route: "Johar", predicted: 12, actual: 11 },
+  { trip: "Wed PM", route: "Cantt", predicted: 15, actual: 19 },
+  { trip: "Thu AM", route: "Faisalabad Rd", predicted: 10, actual: 9 },
+  { trip: "Thu PM", route: "Walton", predicted: 13, actual: 14 },
+];
+
 export const routeSeed = [
   { id: "R-100", name: "Campus Loop A", driver: "Fatima Khan", active: true },
   { id: "R-200", name: "Science Shuttle", driver: "Ali Raza", active: true },
