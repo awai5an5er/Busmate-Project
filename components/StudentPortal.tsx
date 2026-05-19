@@ -428,8 +428,17 @@ export function StudentPortal() {
         `Boarding recorded for ${route.name}. ${data.seatsAvailable} seat(s) still available.`,
         "success",
       );
-    } catch {
-      pushNotification("Could not record boarding. Try again.", "error");
+    } catch (err: unknown) {
+      const message =
+        axios.isAxiosError(err) &&
+        typeof err.response?.data === "object" &&
+        err.response.data !== null &&
+        "error" in err.response.data
+          ? String((err.response.data as { error: unknown }).error)
+          : "Could not record boarding. Try again.";
+      const isDuplicate =
+        axios.isAxiosError(err) && err.response?.status === 409;
+      pushNotification(message, isDuplicate ? "warning" : "error");
     } finally {
       setBoardingRouteId(null);
     }

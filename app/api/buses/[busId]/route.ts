@@ -6,7 +6,11 @@ import {
   deleteCachedDriverLocation,
 } from "@/lib/driverLocationRedis";
 import { recordTripLogOnEnd } from "@/lib/recordTripLogOnEnd";
+import { clearStudentBoardingForBus } from "@/lib/studentBoarding";
 import { Bus as BusModel } from "@/models";
+
+/** Seats reset to this count when the driver starts a new trip. */
+const SEATS_ON_TRIP_START = 50;
 
 export async function PATCH(
   request: Request,
@@ -46,11 +50,14 @@ export async function PATCH(
       $set.isLive = body.isLive;
       if (startingTrip) {
         $set.tripStartedAt = new Date();
-        $set.seatsAvailableAtTripStart = existing.seatsAvailable;
+        $set.seatsAvailable = SEATS_ON_TRIP_START;
+        $set.seatsAvailableAtTripStart = SEATS_ON_TRIP_START;
+        $set.bookedStudentIds = [];
         $set.status = "active";
       }
       if (endingTrip) {
         $set.status = "idle";
+        $set.bookedStudentIds = [];
         $unset.tripStartedAt = 1;
         $unset.seatsAvailableAtTripStart = 1;
       }
@@ -125,6 +132,14 @@ export async function PATCH(
 
     if (!updated) {
       return NextResponse.json({ error: "Bus not found." }, { status: 404 });
+    }
+
+    if (startingTrip || endingTrip) {
+      try {
+        await clearStudentBoardingForBus(updated._id);
+      } catch (clearErr) {
+        console.error("clearStudentBoardingForBus:", clearErr);
+      }
     }
 
     if (endingTrip) {

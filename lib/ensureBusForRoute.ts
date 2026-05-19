@@ -26,7 +26,7 @@ export async function ensureBusDocumentForRoute(params: {
     name: title,
     route: pathLabel,
     eta: 10,
-    seatsAvailable: 40,
+    seatsAvailable: 50,
     totalSeats: 50,
     isLive: false,
     position: DEFAULT_POSITION,

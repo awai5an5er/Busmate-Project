@@ -8,6 +8,10 @@ export interface IUser extends Document {
   role: "student" | "driver" | "admin";
   studentId?: string; // for students
   driverId?: string; // for drivers
+  /** Active boarding for the current trip (students only) */
+  boardedRouteId?: string;
+  boardedBusName?: string;
+  boardedBusId?: mongoose.Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +53,18 @@ const UserSchema: Schema = new Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    boardedRouteId: {
+      type: String,
+      trim: true,
+    },
+    boardedBusName: {
+      type: String,
+      trim: true,
+    },
+    boardedBusId: {
+      type: Schema.Types.ObjectId,
+      ref: "Bus",
     },
   },
   {

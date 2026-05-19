@@ -29,6 +29,8 @@ export interface IBus extends Document {
   tripStartedAt?: Date;
   /** seatsAvailable snapshot at trip start (for passenger count on end) */
   seatsAvailableAtTripStart?: number;
+  /** Students who reserved a seat for the current trip */
+  bookedStudentIds?: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -118,6 +120,12 @@ const BusSchema: Schema = new Schema(
       type: Number,
       min: 0,
     },
+    bookedStudentIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

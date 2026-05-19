@@ -176,8 +176,15 @@ export function DriverInterface() {
   const handleStartTrip = async () => {
     if (!controlledBus) return;
     try {
-      await axios.patch(`/api/buses/${controlledBus.id}`, { isLive: true });
-      updateBusFromFeed(controlledBus.id, { isLive: true });
+      const { data } = await axios.patch<{
+        bus?: { seatsAvailable?: number; isLive?: boolean };
+      }>(`/api/buses/${controlledBus.id}`, { isLive: true });
+      const seats =
+        typeof data.bus?.seatsAvailable === "number"
+          ? data.bus.seatsAvailable
+          : 50;
+      updateSeatAvailability(controlledBus.id, seats);
+      updateBusFromFeed(controlledBus.id, { isLive: true, seatsAvailable: seats });
       startTrip();
 
       // Show notification with route name
