@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   BellRing,
+  BusFront,
   Clock3,
   Search,
   Users,
@@ -50,6 +51,9 @@ function normalizeSeatCount(value: unknown): number {
 export function StudentPortal() {
   const buses = useBusMateStore((state) => state.buses);
   const upsertBus = useBusMateStore((state) => state.upsertBus);
+  const updateSeatAvailability = useBusMateStore(
+    (state) => state.updateSeatAvailability,
+  );
   const notifications = useBusMateStore((state) => state.notifications);
   const dismissNotification = useBusMateStore(
     (state) => state.dismissNotification,
@@ -79,6 +83,7 @@ export function StudentPortal() {
     [],
   );
   const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [boardingRouteId, setBoardingRouteId] = useState<string | null>(null);
   const [myComplaints, setMyComplaints] = useState<
     Array<{
       id: string;
@@ -392,6 +397,43 @@ export function StudentPortal() {
     return normalizeSeatCount(merged ?? 0);
   };
 
+  const handleBoardBus = async (route: ActiveRouteRow) => {
+    if (boardingRouteId) return;
+    const seats = seatLabelForRoute(route);
+    if (seats <= 0) {
+      pushNotification("This bus is full.", "warning");
+      return;
+    }
+    setBoardingRouteId(route.id);
+    try {
+      const { data } = await axios.post<{
+        seatsAvailable: number;
+        busId: string;
+        bus?: Parameters<typeof upsertBus>[0];
+      }>("/api/student/board", { routeId: route.id });
+      if (data.bus) {
+        upsertBus(data.bus);
+      } else if (data.busId) {
+        updateSeatAvailability(data.busId, data.seatsAvailable);
+      }
+      setRoutes((prev) =>
+        prev.map((r) =>
+          r.id === route.id
+            ? { ...r, seatsAvailable: data.seatsAvailable }
+            : r,
+        ),
+      );
+      pushNotification(
+        `Boarding recorded for ${route.name}. ${data.seatsAvailable} seat(s) still available.`,
+        "success",
+      );
+    } catch {
+      pushNotification("Could not record boarding. Try again.", "error");
+    } finally {
+      setBoardingRouteId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {user && (
@@ -570,9 +612,26 @@ export function StudentPortal() {
                       </div>
                       <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
                         <Users className="h-3.5 w-3.5 shrink-0" />
-                        {String(seats)} seats
+                        {String(seats)} seats left
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleBoardBus(route)}
+                      disabled={
+                        boardingRouteId === route.id ||
+                        seats <= 0 ||
+                        Boolean(boardingRouteId)
+                      }
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-600/90 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                    >
+                      <BusFront className="h-4 w-4 shrink-0" />
+                      {boardingRouteId === route.id
+                        ? "Boarding…"
+                        : seats <= 0
+                          ? "Bus Full"
+                          : "I'm Boarding This Bus"}
+                    </button>
                   </div>
                 );
               })}

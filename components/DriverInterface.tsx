@@ -82,6 +82,26 @@ export function DriverInterface() {
     };
   }, [pushNotification, upsertBus, setGpsActive]);
 
+  useEffect(() => {
+    if (loadState !== "ready" || !assignedBus?.id) return;
+
+    const refreshAssignment = async () => {
+      try {
+        const { data } = await axios.get<AssignmentApi>(
+          "/api/driver/assignment",
+        );
+        if (!data.bus) return;
+        upsertBus(data.bus);
+        setAssignedBus(data.bus);
+      } catch {
+        /* ignore refresh errors */
+      }
+    };
+
+    const timer = setInterval(() => void refreshAssignment(), 5_000);
+    return () => clearInterval(timer);
+  }, [loadState, assignedBus?.id, upsertBus]);
+
   const loadComplaints = useCallback(async () => {
     try {
       const { data } = await axios.get<{
