@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
-import { ChatMessage } from "@/models";
+import { ChatClear, ChatMessage } from "@/models";
+
+function buildVisibilityFilter(userId: string, role: string) {
+  if (role === "admin") {
+    return {};
+  }
+  return {
+    $or: [
+      { senderId: userId },
+      { senderRole: "admin", target: "all" },
+      {
+        senderRole: "admin",
+        target: "driver",
+        targetDriverId: userId,
+      },
+    ],
+  };
+}
 
 export async function GET(request: NextRequest) {
   const { user, error } = await getCurrentUser(request);
@@ -15,20 +32,18 @@ export async function GET(request: NextRequest) {
   await dbConnect();
 
   const currentUserId = user._id.toString();
+  const visibilityFilter = buildVisibilityFilter(currentUserId, user.role);
+
+  const clearState = await ChatClear.findOne({ userId: currentUserId }).lean();
+  const timeFilter =
+    clearState?.clearedAt != null
+      ? { createdAt: { $gt: clearState.clearedAt } }
+      : {};
+
   const filter =
-    user.role === "admin"
-      ? {}
-      : {
-          $or: [
-            { senderId: currentUserId },
-            { senderRole: "admin", target: "all" },
-            {
-              senderRole: "admin",
-              target: "driver",
-              targetDriverId: currentUserId,
-            },
-          ],
-        };
+    Object.keys(visibilityFilter).length === 0
+      ? timeFilter
+      : { $and: [visibilityFilter, timeFilter] };
 
   const items = await ChatMessage.find(filter)
     .sort({ createdAt: 1 })
@@ -70,6 +85,10 @@ export async function POST(request: NextRequest) {
 
   const isDriver = user.role === "driver";
   const isAdmin = user.role === "admin";
+
+  if (!isDriver && !isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   let target: "admin" | "all" | "driver" = "admin";
   let targetDriverId: string | null = null;
@@ -134,15 +153,20 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  if (user.role !== "admin") {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403 },
-    );
+  if (user.role !== "admin" && user.role !== "driver") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   await dbConnect();
-  await ChatMessage.deleteMany({});
 
-  return NextResponse.json({ success: true });
+  const userId = user._id.toString();
+  const clearedAt = new Date();
+
+  await ChatClear.findOneAndUpdate(
+    { userId },
+    { userId, clearedAt },
+    { upsert: true, new: true },
+  );
+
+  return NextResponse.json({ success: true, clearedAt: clearedAt.toISOString() });
 }

@@ -28,13 +28,8 @@ export function ChatBox({ title }: { title: string }) {
   const [targetDriverId, setTargetDriverId] = useState<string>("");
   const [clearing, setClearing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const lastClearedRef = useRef<number>(0);
 
   const loadMessages = useCallback(async () => {
-    const timeSinceCleared = Date.now() - lastClearedRef.current;
-    if (timeSinceCleared < 5000) {
-      return;
-    }
     setLoading(true);
     try {
       const { data } = await axios.get<{ messages: ChatMessage[] }>(
@@ -161,26 +156,22 @@ export function ChatBox({ title }: { title: string }) {
         <button
           type="button"
           onClick={async () => {
-            if (user?.role === "admin") {
-              setClearing(true);
-              try {
-                await axios.delete("/api/chat");
-                setMessages([]);
-                lastClearedRef.current = Date.now();
-                setError(null);
-              } catch {
-                setError("Could not clear chat log.");
-              } finally {
-                setClearing(false);
-              }
-            } else {
+            if (user?.role !== "admin" && user?.role !== "driver") return;
+            setClearing(true);
+            try {
+              await axios.delete("/api/chat");
               setMessages([]);
+              setError(null);
+            } catch {
+              setError("Could not clear chat for your account.");
+            } finally {
+              setClearing(false);
             }
           }}
           className="inline-flex items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={clearing}
+          disabled={clearing || (user?.role !== "admin" && user?.role !== "driver")}
         >
-          {clearing ? "Clearing..." : user?.role === "admin" ? "Clear Chat" : "Clear View"}
+          {clearing ? "Clearing..." : "Clear Chat"}
         </button>
       </div>
       {user?.role === "admin" && (

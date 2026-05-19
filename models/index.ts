@@ -7,6 +7,7 @@ export { default as Complaint } from "./Complaint";
 export { default as Emergency } from "./Emergency";
 export { default as TripLog } from "./TripLog";
 export { default as ChatMessage } from "./ChatMessage";
+export { default as ChatClear } from "./ChatClear";
 
 
 export type { IUser } from "./User";
@@ -18,3 +19,4 @@ export type { IComplaint } from "./Complaint";
 export type { IEmergency } from "./Emergency";
 export type { ITripLog } from "./TripLog";
 export type { IChatMessage } from "./ChatMessage";
+export type { IChatClear } from "./ChatClear";
