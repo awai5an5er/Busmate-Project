@@ -5,6 +5,7 @@ export { default as Route } from "./Route";
 export { default as Broadcast } from "./Broadcast";
 export { default as Complaint } from "./Complaint";
 export { default as Emergency } from "./Emergency";
+export { default as TripLog } from "./TripLog";
 
 // Export types
 export type { IUser } from "./User";
@@ -14,3 +15,4 @@ export type { IRoute } from "./Route";
 export type { IBroadcast } from "./Broadcast";
 export type { IComplaint } from "./Complaint";
 export type { IEmergency } from "./Emergency";
+export type { ITripLog } from "./TripLog";

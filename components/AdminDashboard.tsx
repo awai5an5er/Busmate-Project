@@ -2,7 +2,13 @@
 
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Megaphone, Plus, Siren } from "lucide-react";
+import {
+  AlertTriangle,
+  History,
+  Megaphone,
+  Plus,
+  Siren,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -67,12 +73,44 @@ export function AdminDashboard() {
     }>
   >([]);
   const notifiedEmergencyIdsRef = useRef<Set<string>>(new Set());
+  const [tripLogs, setTripLogs] = useState<
+    Array<{
+      id: string;
+      busName: string;
+      driver: string;
+      routeName: string;
+      startTime: number;
+      endTime: number;
+      totalDuration: string;
+      totalPassengers: number;
+    }>
+  >([]);
 
   const loadingAdminTable = useBusMateStore((state) => state.loadingAdminTable);
   const setLoadingAdminTable = useBusMateStore(
     (state) => state.setLoadingAdminTable,
   );
   const pushNotification = useBusMateStore((state) => state.pushNotification);
+
+  const loadTripLogs = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        trips: Array<{
+          id: string;
+          busName: string;
+          driver: string;
+          routeName: string;
+          startTime: number;
+          endTime: number;
+          totalDuration: string;
+          totalPassengers: number;
+        }>;
+      }>("/api/admin/trip-logs");
+      setTripLogs(data.trips ?? []);
+    } catch {
+      /* ignore trip log fetch errors */
+    }
+  }, []);
 
   const loadManagementHub = useCallback(async () => {
     const syncRes = await axios
@@ -157,7 +195,8 @@ export function AdminDashboard() {
     });
 
     setRows(mapped);
-  }, [pushNotification]);
+    void loadTripLogs();
+  }, [pushNotification, loadTripLogs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -607,6 +646,61 @@ export function AdminDashboard() {
           )}
         </div>
         <div className="space-y-4">
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
+            <h3 className="mb-3 flex items-center gap-2 text-sm sm:text-base font-semibold text-white">
+              <History className="h-4 w-4 text-amber-400" />
+              Trip History Log
+            </h3>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <table className="w-full min-w-[520px] text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-amber-400/20 text-left text-xs uppercase text-amber-200/70">
+                    <th className="py-2 pr-2">Bus</th>
+                    <th className="py-2 pr-2">Driver</th>
+                    <th className="py-2 pr-2">Route</th>
+                    <th className="py-2 pr-2">Start</th>
+                    <th className="py-2 pr-2">End</th>
+                    <th className="py-2 pr-2">Duration</th>
+                    <th className="py-2 pr-0">Passengers</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tripLogs.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="py-4 text-center text-xs text-amber-200/70"
+                      >
+                        No completed trips yet.
+                      </td>
+                    </tr>
+                  )}
+                  {tripLogs.map((trip) => (
+                    <tr
+                      key={trip.id}
+                      className="border-b border-amber-400/10 text-amber-100"
+                    >
+                      <td className="py-2 pr-2 font-medium text-white">
+                        {trip.busName}
+                      </td>
+                      <td className="py-2 pr-2">{trip.driver}</td>
+                      <td className="py-2 pr-2">{trip.routeName}</td>
+                      <td className="whitespace-nowrap py-2 pr-2 text-amber-200/80">
+                        {new Date(trip.startTime).toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap py-2 pr-2 text-amber-200/80">
+                        {new Date(trip.endTime).toLocaleString()}
+                      </td>
+                      <td className="py-2 pr-2">{trip.totalDuration}</td>
+                      <td className="py-2 pr-0 font-semibold text-amber-300">
+                        {trip.totalPassengers}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
             <h3 className="mb-3 text-sm sm:text-base font-semibold text-white">
               Analytics View

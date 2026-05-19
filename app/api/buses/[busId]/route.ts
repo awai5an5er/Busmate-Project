@@ -5,6 +5,7 @@ import {
   cacheDriverLocation,
   deleteCachedDriverLocation,
 } from "@/lib/driverLocationRedis";
+import { recordTripLogOnEnd } from "@/lib/recordTripLogOnEnd";
 import { Bus as BusModel } from "@/models";
 
 export async function PATCH(
@@ -19,6 +20,7 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
     const $set: Record<string, unknown> = {};
+    const $unset: Record<string, 1> = {};
     let wroteCurrentCoord = false;
     let gpsTurnedOff = false;
 
@@ -28,9 +30,30 @@ export async function PATCH(
       $set.seatsAvailable = Math.floor(seatRaw);
     }
 
-    // Live flag
+    await dbConnect();
+    const existing = await BusModel.findOne(busFilter(busId)).lean();
+    if (!existing) {
+      return NextResponse.json({ error: "Bus not found." }, { status: 404 });
+    }
+
+    const endingTrip =
+      body.isLive === false && Boolean(existing.isLive);
+    const startingTrip =
+      body.isLive === true && !existing.isLive;
+
+    // Live flag + trip lifecycle fields
     if (typeof body.isLive === "boolean") {
       $set.isLive = body.isLive;
+      if (startingTrip) {
+        $set.tripStartedAt = new Date();
+        $set.seatsAvailableAtTripStart = existing.seatsAvailable;
+        $set.status = "active";
+      }
+      if (endingTrip) {
+        $set.status = "idle";
+        $unset.tripStartedAt = 1;
+        $unset.seatsAvailableAtTripStart = 1;
+      }
     }
 
     // ETA in minutes
@@ -89,15 +112,36 @@ export async function PATCH(
       );
     }
 
-    await dbConnect();
+    const updateOps: Record<string, unknown> = { $set };
+    if (Object.keys($unset).length > 0) {
+      updateOps.$unset = $unset;
+    }
+
     const updated = await BusModel.findOneAndUpdate(
       busFilter(busId),
-      { $set },
+      updateOps,
       { new: true, runValidators: true },
     ).lean();
 
     if (!updated) {
       return NextResponse.json({ error: "Bus not found." }, { status: 404 });
+    }
+
+    if (endingTrip) {
+      try {
+        await recordTripLogOnEnd({
+          name: existing.name,
+          route: existing.route,
+          routeId: existing.routeId,
+          driverId: existing.driverId,
+          seatsAvailable: existing.seatsAvailable,
+          seatsAvailableAtTripStart: existing.seatsAvailableAtTripStart,
+          tripStartedAt: existing.tripStartedAt,
+          updatedAt: existing.updatedAt,
+        });
+      } catch (logErr) {
+        console.error("TripLog create error:", logErr);
+      }
     }
 
     const redisBusId = updated.shortId
