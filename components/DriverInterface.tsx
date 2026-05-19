@@ -8,6 +8,7 @@ import {
   BusFront,
   LocateFixed,
   Play,
+  Siren,
   Square,
   Users,
 } from "lucide-react";
@@ -46,6 +47,7 @@ export function DriverInterface() {
   const [routeTitle, setRouteTitle] = useState<string | null>(null);
   const [assignedBus, setAssignedBus] = useState<Bus | null>(null);
   const [complaints, setComplaints] = useState<Array<{ id: string; message: string; studentName?: string; createdAt: number }>>([]);
+  const [sendingSos, setSendingSos] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,6 +185,68 @@ export function DriverInterface() {
     }
   };
 
+  const resolveEmergencyCoords = async (
+    bus: Bus,
+  ): Promise<{ lat: number; lng: number }> => {
+    if (
+      typeof bus.currentCoord?.lat === "number" &&
+      typeof bus.currentCoord?.lng === "number"
+    ) {
+      return { lat: bus.currentCoord.lat, lng: bus.currentCoord.lng };
+    }
+    if (
+      typeof bus.position?.lat === "number" &&
+      typeof bus.position?.lng === "number"
+    ) {
+      return { lat: bus.position.lat, lng: bus.position.lng };
+    }
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation unavailable"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
+        () => reject(new Error("Could not read device GPS")),
+        { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
+      );
+    });
+  };
+
+  const handleSosEmergency = async () => {
+    if (!controlledBus || sendingSos) return;
+    const confirmed = window.confirm(
+      "Send SOS emergency alert to Admin with your current location?",
+    );
+    if (!confirmed) return;
+
+    setSendingSos(true);
+    try {
+      const coords = await resolveEmergencyCoords(controlledBus);
+      await axios.post("/api/driver/emergency", {
+        lat: coords.lat,
+        lng: coords.lng,
+        busId: controlledBus.id,
+        busName: controlledBus.name,
+      });
+      pushNotification(
+        "SOS emergency alert sent to Admin.",
+        "error",
+      );
+    } catch {
+      pushNotification(
+        "Could not send SOS alert. Enable GPS and try again.",
+        "error",
+      );
+    } finally {
+      setSendingSos(false);
+    }
+  };
+
   if (loadState === "loading") {
     return (
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
@@ -285,6 +349,15 @@ export function DriverInterface() {
               End Trip
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleSosEmergency()}
+            disabled={sendingSos}
+            className="mt-3 flex w-full min-h-[3.5rem] items-center justify-center gap-2 rounded-2xl border-2 border-red-400 bg-red-600 px-4 py-3 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-red-900/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Siren className="h-5 w-5 shrink-0 animate-pulse" />
+            {sendingSos ? "Sending SOS…" : "SOS Emergency"}
+          </button>
           <div className="mt-5 rounded-2xl bg-white/5 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-amber-200/70">
               Occupancy

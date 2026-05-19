@@ -1,8 +1,8 @@
 "use client";
 
 import axios from "axios";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Megaphone, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Megaphone, Plus, Siren } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -57,6 +57,16 @@ export function AdminDashboard() {
       createdAt: number;
     }>
   >([]);
+  const [emergencies, setEmergencies] = useState<
+    Array<{
+      id: string;
+      driverName: string;
+      busName: string;
+      coordinates: { lat: number; lng: number };
+      createdAt: number;
+    }>
+  >([]);
+  const notifiedEmergencyIdsRef = useRef<Set<string>>(new Set());
 
   const loadingAdminTable = useBusMateStore((state) => state.loadingAdminTable);
   const setLoadingAdminTable = useBusMateStore(
@@ -302,8 +312,98 @@ export function AdminDashboard() {
     void loadComplaints();
   }, [loadComplaints]);
 
+  const loadEmergencies = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        emergencies: Array<{
+          id: string;
+          driverName: string;
+          busName: string;
+          coordinates: { lat: number; lng: number };
+          createdAt: number;
+        }>;
+      }>("/api/admin/emergencies");
+      const list = data.emergencies ?? [];
+      setEmergencies(list);
+
+      for (const alert of list) {
+        if (notifiedEmergencyIdsRef.current.has(alert.id)) continue;
+        notifiedEmergencyIdsRef.current.add(alert.id);
+        const time = new Date(alert.createdAt).toLocaleString();
+        const coords = `${alert.coordinates.lat.toFixed(5)}, ${alert.coordinates.lng.toFixed(5)}`;
+        pushNotification(
+          `SOS EMERGENCY — ${alert.driverName} (${alert.busName}) at ${coords} — ${time}`,
+          "error",
+        );
+      }
+    } catch {
+      /* ignore emergency fetch errors */
+    }
+  }, [pushNotification]);
+
+  useEffect(() => {
+    void loadEmergencies();
+  }, [loadEmergencies]);
+
+  const handleClearEmergencies = async () => {
+    try {
+      await axios.delete("/api/admin/emergencies");
+      setEmergencies([]);
+      notifiedEmergencyIdsRef.current.clear();
+      pushNotification("All emergency alerts cleared.", "success");
+    } catch {
+      pushNotification("Failed to clear emergency alerts.", "error");
+    }
+  };
+
   return (
     <div className="space-y-4 px-2 sm:px-4">
+      {emergencies.length > 0 && (
+        <section className="rounded-3xl border-2 border-red-500/60 bg-red-950/40 p-4 shadow-lg shadow-red-900/30 backdrop-blur sm:p-5">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="flex items-center gap-2 text-base font-bold text-red-300">
+              <Siren className="h-5 w-5 animate-pulse text-red-400" />
+              Priority SOS Alerts ({emergencies.length})
+            </h2>
+            <button
+              type="button"
+              onClick={() => void loadEmergencies()}
+              className="inline-flex items-center rounded-lg border border-red-400/40 px-2.5 py-1 text-xs font-medium text-red-200 hover:bg-red-900/40 transition"
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleClearEmergencies()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800 hover:bg-red-200 transition"
+            >
+              Clear All
+            </button>
+          </div>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {emergencies.map((alert) => (
+              <div
+                key={alert.id}
+                className="rounded-xl border border-red-400/40 bg-red-900/30 p-3"
+              >
+                <p className="text-sm font-bold text-red-100">
+                  SOS — {alert.driverName}
+                </p>
+                <p className="mt-1 text-sm text-red-200/90">
+                  Bus: {alert.busName}
+                </p>
+                <p className="mt-1 text-xs text-red-200/80">
+                  GPS: {alert.coordinates.lat.toFixed(5)},{" "}
+                  {alert.coordinates.lng.toFixed(5)}
+                </p>
+                <p className="mt-2 text-xs text-red-300/70">
+                  {new Date(alert.createdAt).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {stats.map((card) => (
           <div

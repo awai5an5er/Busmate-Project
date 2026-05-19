@@ -4,6 +4,7 @@ export { default as BusNotification } from "./BusNotification";
 export { default as Route } from "./Route";
 export { default as Broadcast } from "./Broadcast";
 export { default as Complaint } from "./Complaint";
+export { default as Emergency } from "./Emergency";
 
 // Export types
 export type { IUser } from "./User";
@@ -12,3 +13,4 @@ export type { IBusNotification } from "./BusNotification";
 export type { IRoute } from "./Route";
 export type { IBroadcast } from "./Broadcast";
 export type { IComplaint } from "./Complaint";
+export type { IEmergency } from "./Emergency";
