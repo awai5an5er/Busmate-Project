@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
         const driverGpsLive =
           gpsActive && (!redisConfigured || locationFresh);
 
+        const tripStatus =
+          b.status === "active" || b.isLive ? "active" : "idle";
+
         return {
           id,
           mongoId: String(b._id),
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest) {
           driverName,
           gpsActive,
           isLive: Boolean(b.isLive),
+          tripStatus,
           driverGpsLive,
         };
       }),

@@ -30,10 +30,9 @@ type RouteTableRow = {
   driver: string;
   /** Route enabled in the system (create-route / isActive). */
   routeEnabled: boolean;
-  /** Driver GPS broadcasting (synced from bus + Redis freshness). */
-  driverGpsLive: boolean;
   busId: string | null;
   assignedDriverId: string | null;
+  tripStatus: "idle" | "active";
 };
 
 export function AdminDashboard() {
@@ -46,6 +45,9 @@ export function AdminDashboard() {
   const [routeFormError, setRouteFormError] = useState("");
   const [broadcastError, setBroadcastError] = useState("");
   const [assigningBusId, setAssigningBusId] = useState<string | null>(null);
+  const [updatingTripBusId, setUpdatingTripBusId] = useState<string | null>(
+    null,
+  );
   const [complaints, setComplaints] = useState<
     Array<{
       id: string;
@@ -86,7 +88,7 @@ export function AdminDashboard() {
             routeId: string | null;
             assignedDriverId: string | null;
             driverName: string | null;
-            driverGpsLive: boolean;
+            tripStatus: "idle" | "active";
           }>;
         }>("/api/admin/buses"),
         axios.get<{ drivers: DriverOption[] }>("/api/admin/drivers"),
@@ -100,7 +102,7 @@ export function AdminDashboard() {
         busId: string;
         assignedDriverId: string | null;
         driverName: string | null;
-        driverGpsLive: boolean;
+        tripStatus: "idle" | "active";
       }
     >();
     for (const b of busesData.buses ?? []) {
@@ -111,7 +113,7 @@ export function AdminDashboard() {
             busId: b.id,
             assignedDriverId: b.assignedDriverId,
             driverName: b.driverName,
-            driverGpsLive: Boolean(b.driverGpsLive),
+            tripStatus: b.tripStatus === "active" ? "active" : "idle",
           });
         }
       }
@@ -126,14 +128,21 @@ export function AdminDashboard() {
           ? link.driverName
           : routeDriverLabel;
 
+      const hasDriver = Boolean(link?.assignedDriverId);
+      const tripStatus: "idle" | "active" = hasDriver
+        ? link?.tripStatus === "active"
+          ? "active"
+          : "idle"
+        : "idle";
+
       return {
         routeId: rid,
         name: String(r.name ?? ""),
         driver: driverDisplay,
         routeEnabled: Boolean(r.isActive),
-        driverGpsLive: link?.driverGpsLive ?? false,
         busId: link?.busId ?? null,
         assignedDriverId: link?.assignedDriverId ?? null,
+        tripStatus,
       };
     });
 
@@ -168,8 +177,8 @@ export function AdminDashboard() {
     () => [
       { label: "Total Routes", value: rows.length },
       {
-        label: "GPS Live",
-        value: rows.filter((item) => item.driverGpsLive).length,
+        label: "Active Trips",
+        value: rows.filter((item) => item.tripStatus === "active").length,
       },
       {
         label: "Drivers Assigned",
@@ -198,6 +207,36 @@ export function AdminDashboard() {
       pushNotification("Route saved to the database.", "success");
     } catch {
       pushNotification("Could not create route.", "error");
+    }
+  };
+
+  const handleTripChange = async (
+    row: RouteTableRow,
+    trip: "idle" | "active",
+  ) => {
+    if (!row.busId) {
+      pushNotification(
+        "No bus is linked to this route yet (set bus.routeId).",
+        "warning",
+      );
+      return;
+    }
+    if (!row.assignedDriverId) {
+      pushNotification("Assign a driver before changing trip status.", "warning");
+      return;
+    }
+    setUpdatingTripBusId(row.busId);
+    try {
+      await axios.put("/api/admin/trip-status", {
+        busId: row.busId,
+        status: trip,
+      });
+      await loadManagementHub();
+      pushNotification("Trip status updated.", "success");
+    } catch {
+      pushNotification("Could not update trip status.", "error");
+    } finally {
+      setUpdatingTripBusId(null);
     }
   };
 
@@ -343,7 +382,7 @@ export function AdminDashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto -mx-1 px-1">
-              <table className="w-full min-w-[500px] text-xs sm:text-sm">
+              <table className="w-full min-w-[560px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-amber-400/20 text-left text-xs uppercase text-amber-200/70">
                     <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1">
@@ -360,6 +399,9 @@ export function AdminDashboard() {
                     </th>
                     <th className="hidden sm:table-cell whitespace-nowrap py-2 pr-1 sm:pr-2">
                       Status
+                    </th>
+                    <th className="whitespace-nowrap py-2 pr-1 sm:pr-2">
+                      Trip
                     </th>
                     <th className="whitespace-nowrap py-2 pr-0">Action</th>
                   </tr>
@@ -392,7 +434,9 @@ export function AdminDashboard() {
                           className="w-full max-w-[8rem] sm:max-w-[10rem] rounded-lg border border-slate-700/70 bg-slate-900 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-slate-800"
                           aria-label={`Assign driver for ${row.name}`}
                         >
-                          <option value="">{row.busId ? "—" : "No bus"}</option>
+                          <option value="">
+                            {row.busId ? "no driver" : "No bus"}
+                          </option>
                           {drivers.map((d) => (
                             <option key={d.id} value={d.id}>
                               {d.name}
@@ -403,18 +447,41 @@ export function AdminDashboard() {
                       <td className="hidden sm:table-cell py-2 pr-1 sm:pr-2">
                         <span
                           className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            row.driverGpsLive
+                            row.assignedDriverId
                               ? "bg-emerald-500/25 text-emerald-300"
                               : "bg-slate-700/50 text-slate-400"
                           }`}
                           title={
-                            row.driverGpsLive
-                              ? "Driver GPS is on and broadcasting"
-                              : "Driver GPS is off or not broadcasting"
+                            row.assignedDriverId
+                              ? "Driver assigned to this route"
+                              : "No driver assigned"
                           }
                         >
-                          {row.driverGpsLive ? "Active" : "Inactive"}
+                          {row.assignedDriverId ? "Active" : "Inactive"}
                         </span>
+                      </td>
+                      <td className="py-2 pr-1 sm:pr-2">
+                        <select
+                          value={
+                            row.assignedDriverId ? row.tripStatus : "idle"
+                          }
+                          disabled={
+                            !row.busId ||
+                            !row.assignedDriverId ||
+                            updatingTripBusId === row.busId
+                          }
+                          onChange={(e) =>
+                            void handleTripChange(
+                              row,
+                              e.target.value as "idle" | "active",
+                            )
+                          }
+                          className="w-full max-w-[6rem] sm:max-w-[7rem] rounded-lg border border-slate-700/70 bg-slate-900 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs text-white outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:bg-slate-800"
+                          aria-label={`Trip status for ${row.name}`}
+                        >
+                          <option value="idle">idle</option>
+                          <option value="active">active</option>
+                        </select>
                       </td>
                       <td className="py-2 pr-1">
                         <button

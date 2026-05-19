@@ -9,7 +9,13 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect();
-    const rows = await ComplaintModel.find({})
+    const rows = await ComplaintModel.find({
+      $or: [
+        { driverId: null },
+        { driverId: { $exists: false } },
+        { driverId: "" },
+      ],
+    })
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
@@ -38,7 +44,13 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await dbConnect();
-    await ComplaintModel.deleteMany({});
+    await ComplaintModel.deleteMany({
+      $or: [
+        { driverId: null },
+        { driverId: { $exists: false } },
+        { driverId: "" },
+      ],
+    });
     return NextResponse.json({
       success: true,
       message: "All complaints cleared.",

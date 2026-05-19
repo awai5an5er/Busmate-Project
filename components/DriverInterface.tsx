@@ -1,9 +1,16 @@
 "use client";
 
 import axios from "axios";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BusFront, LocateFixed, Play, Square, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  BusFront,
+  LocateFixed,
+  Play,
+  Square,
+  Users,
+} from "lucide-react";
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
@@ -73,26 +80,37 @@ export function DriverInterface() {
     };
   }, [pushNotification, upsertBus, setGpsActive]);
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchComplaints = async () => {
-      try {
-        const { data } = await axios.get<{ complaints: Array<{ id: string; message: string; studentName?: string; createdAt: number }> }>(
-          "/api/driver/complaints",
-        );
-        if (!mounted) return;
-        setComplaints(data.complaints ?? []);
-      } catch (e) {
-        // ignore
-      }
-    };
-    void fetchComplaints();
-    const timer = setInterval(() => void fetchComplaints(), 12_000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
+  const loadComplaints = useCallback(async () => {
+    try {
+      const { data } = await axios.get<{
+        complaints: Array<{
+          id: string;
+          message: string;
+          studentName?: string;
+          createdAt: number;
+        }>;
+      }>("/api/driver/complaints");
+      setComplaints(data.complaints ?? []);
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  useEffect(() => {
+    void loadComplaints();
+    const timer = setInterval(() => void loadComplaints(), 12_000);
+    return () => clearInterval(timer);
+  }, [loadComplaints]);
+
+  const handleClearComplaints = async () => {
+    try {
+      await axios.delete("/api/driver/complaints");
+      await loadComplaints();
+      pushNotification("All complaints cleared.", "success");
+    } catch {
+      pushNotification("Failed to clear complaints.", "error");
+    }
+  };
 
   const controlledBus =
     (assignedBus ? buses.find((b) => b.id === assignedBus.id) : null) ??
@@ -280,22 +298,6 @@ export function DriverInterface() {
                 {String(controlledBus.seatsAvailable ?? 0)} / {String(seatMax)}
               </span>
             </div>
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-white/5 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-200/70">
-                Student Complaints
-              </p>
-              <div className="mt-3 space-y-2 max-h-48 overflow-auto">
-                {complaints.length === 0 && (
-                  <p className="text-xs text-amber-200/70">No complaints.</p>
-                )}
-                {complaints.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-amber-400/10 bg-white/3 px-3 py-2">
-                    <p className="text-sm font-medium text-white">{c.message}</p>
-                    <p className="mt-1 text-xs text-amber-200/70">From: {c.studentName ?? "Student"}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
             <input
               type="range"
               min={0}
@@ -353,6 +355,44 @@ export function DriverInterface() {
               >
                 {gpsActive ? "Active" : "Inactive"}
               </button>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-4 shadow-lg backdrop-blur">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Student Complaints ({complaints.length})
+              </h3>
+              {complaints.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void handleClearComplaints()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Clear All
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {complaints.length === 0 && (
+                <p className="rounded-xl border border-dashed border-amber-400/30 p-3 text-xs text-amber-200/70">
+                  No complaints submitted yet.
+                </p>
+              )}
+              {complaints.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-xl border border-amber-400/20 bg-white/5 p-3"
+                >
+                  <p className="text-sm text-white mb-2">{c.message}</p>
+                  <div className="flex items-center justify-between text-xs text-amber-200/70">
+                    <span>By: {c.studentName ?? "Student"}</span>
+                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </aside>

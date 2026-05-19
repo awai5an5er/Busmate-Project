@@ -33,3 +33,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unable to load complaints." }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error } = await getCurrentUser(request);
+    if (error || !user) {
+      return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+    }
+    if (user.role !== "driver") {
+      return NextResponse.json({ error: "Drivers only" }, { status: 403 });
+    }
+
+    await dbConnect();
+    await ComplaintModel.deleteMany({ driverId: user._id.toString() });
+
+    return NextResponse.json({
+      success: true,
+      message: "All complaints cleared.",
+    });
+  } catch (e) {
+    console.error("DELETE /api/driver/complaints:", e);
+    return NextResponse.json(
+      { error: "Unable to clear complaints." },
+      { status: 500 },
+    );
+  }
+}
