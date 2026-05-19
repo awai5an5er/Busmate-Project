@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import { chartSeed } from "@/data/mockData";
 import { useBusMateStore } from "@/store/useBusMateStore";
+import { ChatBox } from "@/components/ChatBox";
 
 type DriverOption = {
   id: string;
@@ -743,6 +744,7 @@ export function AdminDashboard() {
               </div>
             )}
           </div>
+          <ChatBox title="Admin Driver Chat" />
           <div className="rounded-3xl border border-amber-400/20 bg-white/5 p-3 shadow-lg backdrop-blur sm:p-4 md:p-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-white">

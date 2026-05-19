@@ -15,6 +15,7 @@ import {
 import { useBusMateStore } from "@/store/useBusMateStore";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LiveMap } from "@/components/LiveMap";
+import { ChatBox } from "@/components/ChatBox";
 import type { Bus } from "@/types/busmate";
 
 type AssignmentApi = {
@@ -488,6 +489,7 @@ export function DriverInterface() {
               ))}
             </div>
           </div>
+          <ChatBox title="Driver Chat with Admin" />
         </aside>
       </div>
     </div>
