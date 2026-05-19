@@ -45,7 +45,7 @@ export function EtaAccuracyChart() {
         ETA Accuracy
       </h3>
       <p className="mb-1 text-xs text-slate-400">
-        Predicted vs actual arrival times on recent completed trips (sample
+        (Sample
         dataset for FYP evaluation).
       </p>
       <p className="mb-4 text-xs text-amber-200/80">
