@@ -19,6 +19,15 @@ function alreadyBoardedOtherBusMessage(busName: string) {
   return `You have already boarded bus ${busName}.`;
 }
 
+function studentOnBusList(
+  list: mongoose.Types.ObjectId[] | undefined,
+  studentId: mongoose.Types.ObjectId,
+): boolean {
+  return (list ?? []).some((id: mongoose.Types.ObjectId) =>
+    id.equals(studentId),
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { user, error } = await getCurrentUser(request);
@@ -60,8 +69,9 @@ export async function POST(request: NextRequest) {
     if (activeRouteId) {
       const activeBus = await BusModel.findOne({ routeId: activeRouteId }).lean();
       const tripStillActive = Boolean(activeBus?.isLive);
-      const stillOnPassengerList = (activeBus?.bookedStudentIds ?? []).some(
-        (id) => id.equals(studentId),
+      const stillOnPassengerList = studentOnBusList(
+        activeBus?.bookedStudentIds,
+        studentId,
       );
       if (!tripStillActive || !stillOnPassengerList) {
         await User.findByIdAndUpdate(studentId, {
@@ -92,9 +102,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: SAME_BUS_MESSAGE }, { status: 409 });
     }
 
-    const onThisBusList = (bus.bookedStudentIds ?? []).some((id) =>
-      id.equals(studentId),
-    );
+    const onThisBusList = studentOnBusList(bus.bookedStudentIds, studentId);
     if (onThisBusList) {
       return NextResponse.json({ error: SAME_BUS_MESSAGE }, { status: 409 });
     }
@@ -126,8 +134,9 @@ export async function POST(request: NextRequest) {
 
     if (!updated) {
       const latest = await BusModel.findOne({ routeId }).lean();
-      const duplicateOnBus = (latest?.bookedStudentIds ?? []).some((id) =>
-        id.equals(studentId),
+      const duplicateOnBus = studentOnBusList(
+        latest?.bookedStudentIds,
+        studentId,
       );
       if (duplicateOnBus) {
         return NextResponse.json({ error: SAME_BUS_MESSAGE }, { status: 409 });

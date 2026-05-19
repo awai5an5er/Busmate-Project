@@ -168,7 +168,7 @@ export function StudentPortal() {
         }>("/api/drivers");
         if (cancelled) return;
         setDrivers(data.drivers ?? []);
-      } catch (e) {
+      } catch {
         // ignore driver list fetch errors silently
       }
     })();
